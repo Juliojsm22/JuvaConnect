@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JuvaConnect</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar" id="navbar">
+    <a href="#" class="nav-logo" onclick="showPage('landing')">
+      <div class="nav-logo-icon"><i class="fa-solid fa-briefcase"></i></div>
+      <div class="nav-logo-text">Juva<span>Connect</span></div>
+    </a>
+    <div class="nav-links">
+      <button class="nav-link active" onclick="showPage('landing')">Inicio</button>
+      <button class="nav-link" onclick="showPage('landing');scrollTo('#jobs-section')">Empleos</button>
+      <button class="nav-link" onclick="showPage('landing');scrollTo('#companies-section')">Empresas</button>
+      <button class="nav-link" onclick="showPage('landing');scrollTo('#how-section')">¿Cómo funciona?</button>
+    </div>
+    <div class="nav-actions" id="nav-auth-btns">
+      <button class="btn btn-ghost btn-sm" onclick="openModal('auth-modal');switchAuthTab('login')">Iniciar
+        sesión</button>
+      <button class="btn btn-primary btn-sm"
+        onclick="openModal('auth-modal');switchAuthTab('register')">Registrarse</button>
+    </div>
+    <div class="nav-actions hide" id="nav-user-btns">
+      <button class="btn btn-ghost btn-sm" onclick="showPage('student-dash')"><i class="fa-solid fa-gauge"></i>
+        Dashboard</button>
+      <div class="nav-avatar" onclick="showPage('student-dash')" title="Mi perfil">JP</div>
+    </div>
+  </nav>
+
+  <!-- ===== LANDING PAGE ===== -->
+  <div class="page active" id="page-landing">
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-grid"></div>
+      <div class="hero-content">
+        <div class="hero-eyebrow"><i class="fa-solid fa-star"></i> Plataforma #1 para universitarios en Nicaragua</div>
+        <h1 class="hero-title">Tu carrera<br>empieza <span>aquí.</span></h1>
+        <p class="hero-desc">Conectamos estudiantes universitarios con las mejores empresas que buscan talento joven.
+          Prácticas, pasantías y empleos junior en un solo lugar.</p>
+        <div class="hero-actions">
+          <button class="btn btn-hero-primary" onclick="scrollTo('#jobs-section')"><i
+              class="fa-solid fa-magnifying-glass"></i> Buscar empleo</button>
+          <button class="btn btn-hero-secondary" onclick="openModal('auth-modal');switchAuthTab('register')"><i
+              class="fa-solid fa-building"></i> Publicar vacante</button>
+        </div>
+        <div class="hero-stats">
+          <div>
+            <div class="hero-stat-val">2,400+</div>
+            <div class="hero-stat-lbl">Vacantes activas</div>
+          </div>
+          <div>
+            <div class="hero-stat-val">180+</div>
+            <div class="hero-stat-lbl">Empresas</div>
+          </div>
+          <div>
+            <div class="hero-stat-val">12K+</div>
+            <div class="hero-stat-lbl">Estudiantes</div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="float-card">
+          <div class="fc-header">
+            <div class="fc-logo" style="background:#EBF4FF">💻</div>
+            <div class="fc-info">
+              <h4>Desarrollador Frontend Jr.</h4>
+              <p>TechNica · Managua</p>
+            </div>
+          </div>
+          <div class="fc-tags">
+            <span class="fc-tag">React</span>
+            <span class="fc-tag">JavaScript</span>
+            <span class="fc-tag">Remoto</span>
+          </div>
+          <div class="fc-footer">
+            <span class="fc-salary">$600–900/mes</span>
+            <button class="fc-apply" onclick="openModal('job-modal')">Aplicar</button>
+          </div>
+        </div>
+        <div class="float-card">
+          <div class="fc-header">
+            <div class="fc-logo" style="background:#F0FAF6">📊</div>
+            <div class="fc-info">
+              <h4>Analista de Datos</h4>
+              <p>Banco LAFISE · Granada</p>
+            </div>
+          </div>
+          <div class="fc-tags">
+            <span class="fc-tag">Excel</span>
+            <span class="fc-tag">Python</span>
+            <span class="fc-tag">Híbrido</span>
+          </div>
+          <div class="fc-footer">
+            <span class="fc-salary">$800–1,200/mes</span>
+            <button class="fc-apply" onclick="openModal('job-modal')">Aplicar</button>
+          </div>
+        </div>
+        <div class="float-card">
+          <div class="fc-header">
+            <div class="fc-logo" style="background:#FFF3F2">🎨</div>
+            <div class="fc-info">
+              <h4>Diseñador UI/UX</h4>
+              <p>Agencia Creativa · León</p>
+            </div>
+          </div>
+          <div class="fc-tags">
+            <span class="fc-tag">Figma</span>
+            <span class="fc-tag">Illustrator</span>
+            <span class="fc-tag">Presencial</span>
+          </div>
+          <div class="fc-footer">
+            <span class="fc-salary">$500–700/mes</span>
+            <button class="fc-apply" onclick="openModal('job-modal')">Aplicar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEARCH & JOBS -->
+    <section class="search-section" id="jobs-section">
+      <div class="section-header">
+        <div class="section-label">Ofertas disponibles</div>
+        <h2 class="section-title">Encuentra tu oportunidad ideal</h2>
+        <p class="section-sub">Más de 2,400 vacantes esperan por tu talento</p>
+      </div>
+
+      <div class="search-bar">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" placeholder="Buscar por puesto, empresa, habilidad..." id="search-input"
+          oninput="filterJobs()">
+        <button class="btn btn-primary btn-sm">Buscar</button>
+      </div>
+
+      <div class="search-filters">
+        <button class="filter-chip active" onclick="setFilter(this,'all')"><i class="fa-solid fa-th-large"></i>
+          Todos</button>
+        <button class="filter-chip" onclick="setFilter(this,'tech')"><i class="fa-solid fa-code"></i>
+          Tecnología</button>
+        <button class="filter-chip" onclick="setFilter(this,'finance')"><i class="fa-solid fa-chart-line"></i>
+          Finanzas</button>
+        <button class="filter-chip" onclick="setFilter(this,'design')"><i class="fa-solid fa-pen-nib"></i>
+          Diseño</button>
+        <button class="filter-chip" onclick="setFilter(this,'marketing')"><i class="fa-solid fa-bullhorn"></i>
+          Marketing</button>
+        <button class="filter-chip" onclick="setFilter(this,'remote')"><i class="fa-solid fa-wifi"></i> Remoto</button>
+        <button class="filter-chip" onclick="setFilter(this,'internship')"><i class="fa-solid fa-graduation-cap"></i>
+          Pasantía</button>
+      </div>
+
+      <div class="jobs-grid" id="jobs-grid"></div>
+    </section>
+
+    <!-- COMPANIES -->
+    <section class="companies-section" id="companies-section">
+      <div class="section-label">Empresas que confían en JuvaConnect</div>
+      <div class="companies-strip">
+        <div class="company-chip"><span>🏦</span> Banco LAFISE</div>
+        <div class="company-chip"><span>📱</span> Claro Nicaragua</div>
+        <div class="company-chip"><span>💊</span> Pharmedic</div>
+        <div class="company-chip"><span>🏗️</span> Grupo Pellas</div>
+        <div class="company-chip"><span>💻</span> TechNica Labs</div>
+        <div class="company-chip"><span>🌿</span> EAAI Consulting</div>
+        <div class="company-chip"><span>🏪</span> La Colonia</div>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section class="how-section" id="how-section">
+      <div class="section-header" style="text-align:center">
+        <div class="section-label">Simple y rápido</div>
+        <h2 class="section-title">¿Cómo funciona?</h2>
+      </div>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-icon" style="background:var(--blue-pale)"><i class="fa-solid fa-user-plus"
+              style="color:var(--blue)"></i></div>
+          <h3>1. Crea tu perfil</h3>
+          <p>Regístrate como estudiante, completa tu CV digital con experiencia, habilidades y proyectos en minutos.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-icon" style="background:var(--teal-pale)"><i class="fa-solid fa-magnifying-glass"
+              style="color:var(--teal)"></i></div>
+          <h3>2. Explora vacantes</h3>
+          <p>Filtra miles de oportunidades por categoría, modalidad, salario o habilidades. Guarda tus favoritas.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-icon" style="background:var(--coral-pale)"><i class="fa-solid fa-paper-plane"
+              style="color:var(--coral)"></i></div>
+          <h3>3. Aplica y conecta</h3>
+          <p>Envía tu aplicación con un clic. Las empresas revisan tu perfil y te contactan directamente.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand-logo">
+            <div class="footer-brand-logo-icon"><i class="fa-solid fa-briefcase"></i></div>
+            <div class="footer-brand-logo-text">Juva<span>Connect</span></div>
+          </div>
+          <p class="footer-desc">La plataforma líder que conecta el talento universitario nicaragüense con las mejores
+            empresas del país.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Estudiantes</h4>
+          <ul>
+            <li><a href="#">Buscar empleos</a></li>
+            <li><a href="#">Mi CV Digital</a></li>
+            <li><a href="#">Mis aplicaciones</a></li>
+            <li><a href="#">Vacantes guardadas</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Empresas</h4>
+          <ul>
+            <li><a href="#">Publicar vacante</a></li>
+            <li><a href="#">Gestión de candidatos</a></li>
+            <li><a href="#">Planes y precios</a></li>
+            <li><a href="#">Panel empresa</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>JuvaConnect</h4>
+          <ul>
+            <li><a href="#">Acerca de</a></li>
+            <li><a href="#">Contacto</a></li>
+            <li><a href="#">Términos de uso</a></li>
+            <li><a href="#">Privacidad</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2025 JuvaConnect. Todos los derechos reservados.</span>
+        <span>Hecho con ❤️ para universitarios de Nicaragua</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ===== STUDENT DASHBOARD ===== -->
+  <div class="page" id="page-student-dash">
+    <div class="dashboard">
+      <aside class="sidebar">
+        <div class="sidebar-section">
+          <div style="padding:0 24px 24px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div
+                style="width:44px;height:44px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:#fff">
+                JP</div>
+              <div>
+                <div style="color:#fff;font-size:14px;font-weight:600">Juan Pérez</div>
+                <div style="color:rgba(255,255,255,0.4);font-size:12px">Ing. en Sistemas</div>
+              </div>
+            </div>
+          </div>
+          <div class="sidebar-label">Principal</div>
+          <button class="sidebar-item active" onclick="switchDashTab('overview')"><i class="fa-solid fa-gauge"></i>
+            Resumen</button>
+          <button class="sidebar-item" onclick="switchDashTab('jobs')"><i class="fa-solid fa-briefcase"></i> Explorar
+            empleos</button>
+          <button class="sidebar-item" onclick="switchDashTab('applications')"><i class="fa-solid fa-paper-plane"></i>
+            Mis aplicaciones <span class="sidebar-badge"><span class="badge badge-blue">3</span></span></button>
+          <button class="sidebar-item" onclick="switchDashTab('saved')"><i class="fa-solid fa-heart"></i> Guardados
+            <span class="sidebar-badge"><span class="badge badge-coral">5</span></span></button>
+        </div>
+        <div class="sidebar-section" style="margin-top:8px">
+          <div class="sidebar-label">Mi perfil</div>
+          <button class="sidebar-item" onclick="switchDashTab('profile')"><i class="fa-solid fa-user"></i> CV
+            Digital</button>
+          <button class="sidebar-item" onclick="switchDashTab('notifications')"><i class="fa-solid fa-bell"></i>
+            Notificaciones <span class="sidebar-badge"><span class="badge badge-coral">2</span></span></button>
+        </div>
+        <div style="margin-top:auto;padding:16px 24px;border-top:1px solid rgba(255,255,255,0.08);margin-top:40px">
+          <button class="sidebar-item" onclick="logout()" style="color:rgba(255,84,73,0.8)"><i
+              class="fa-solid fa-right-from-bracket"></i> Cerrar sesión</button>
+        </div>
+      </aside>
+
+      <main class="dash-main">
+        <!-- OVERVIEW TAB -->
+        <div class="dash-tab active" id="tab-overview">
+          <div class="dash-header">
+            <div class="dash-title">Bienvenido, Juan 👋</div>
+            <div class="dash-subtitle">Aquí está el resumen de tu actividad esta semana</div>
+          </div>
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-icon" style="background:var(--blue-pale)"><i class="fa-solid fa-paper-plane"
+                  style="color:var(--blue)"></i></div>
+              <div class="stat-val">8</div>
+              <div class="stat-lbl">Aplicaciones</div>
+              <div class="stat-trend stat-up"><i class="fa-solid fa-arrow-trend-up"></i> +3 esta semana</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:var(--teal-pale)"><i class="fa-solid fa-eye"
+                  style="color:var(--teal)"></i></div>
+              <div class="stat-val">34</div>
+              <div class="stat-lbl">Vistas de perfil</div>
+              <div class="stat-trend stat-up"><i class="fa-solid fa-arrow-trend-up"></i> +12 esta semana</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:var(--coral-pale)"><i class="fa-solid fa-heart"
+                  style="color:var(--coral)"></i></div>
+              <div class="stat-val">5</div>
+              <div class="stat-lbl">Guardados</div>
+              <div class="stat-trend" style="color:var(--text-soft)">Empleos favoritos</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:var(--amber-pale)"><i class="fa-solid fa-check-circle"
+                  style="color:var(--amber)"></i></div>
+              <div class="stat-val">85%</div>
+              <div class="stat-lbl">Perfil completado</div>
+              <div class="stat-trend" style="color:var(--amber)">⚡ Casi completo</div>
+            </div>
+          </div>
+          <div class="two-col">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Actividad de aplicaciones</div>
+              </div>
+              <div class="chart-container"><canvas id="overviewChart"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Estado de aplicaciones</div>
+              </div>
+              <div class="chart-container"><canvas id="statusChart"></canvas></div>
+            </div>
+          </div>
+          <div class="full-col">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Empleos recomendados para ti</div>
+                <button class="btn btn-ghost btn-sm" onclick="switchDashTab('jobs')">Ver todos</button>
+              </div>
+              <div class="jobs-grid" id="rec-jobs-grid"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- APPLICATIONS TAB -->
+        <div class="dash-tab" id="tab-applications">
+          <div class="dash-header">
+            <div class="dash-title">Mis Aplicaciones</div>
+            <div class="dash-subtitle">Seguimiento de todas tus postulaciones</div>
+          </div>
+          <div class="card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Empresa</th>
+                  <th>Puesto</th>
+                  <th>Fecha</th>
+                  <th>Modalidad</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="company-cell">
+                      <div class="cell-icon">💻</div><span>TechNica Labs</span>
+                    </div>
+                  </td>
+                  <td>Frontend Developer Jr.</td>
+                  <td>20 May 2025</td>
+                  <td><span class="tag tag-teal">Remoto</span></td>
+                  <td><span class="status-pill status-review"><i class="fa-solid fa-circle" style="font-size:6px"></i>
+                      En revisión</span></td>
+                  <td><button class="btn btn-ghost btn-sm">Ver</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="company-cell">
+                      <div class="cell-icon">📊</div><span>Banco LAFISE</span>
+                    </div>
+                  </td>
+                  <td>Analista de Datos</td>
+                  <td>15 May 2025</td>
+                  <td><span class="tag tag-blue">Híbrido</span></td>
+                  <td><span class="status-pill status-accepted"><i class="fa-solid fa-circle" style="font-size:6px"></i>
+                      Aceptado</span></td>
+                  <td><button class="btn btn-ghost btn-sm">Ver</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="company-cell">
+                      <div class="cell-icon">🎨</div><span>Agencia Pixel</span>
+                    </div>
+                  </td>
+                  <td>Diseñador UI/UX</td>
+                  <td>10 May 2025</td>
+                  <td><span class="tag tag-gray">Presencial</span></td>
+                  <td><span class="status-pill status-pending"><i class="fa-solid fa-circle" style="font-size:6px"></i>
+                      Pendiente</span></td>
+                  <td><button class="btn btn-ghost btn-sm">Ver</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="company-cell">
+                      <div class="cell-icon">📱</div><span>Claro Nicaragua</span>
+                    </div>
+                  </td>
+                  <td>Pasante de Marketing Digital</td>
+                  <td>5 May 2025</td>
+                  <td><span class="tag tag-gray">Presencial</span></td>
+                  <td><span class="status-pill status-rejected"><i class="fa-solid fa-circle" style="font-size:6px"></i>
+                      Rechazado</span></td>
+                  <td><button class="btn btn-ghost btn-sm">Ver</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PROFILE TAB -->
+        <div class="dash-tab" id="tab-profile">
+          <div class="dash-header">
+            <div class="dash-title">Mi CV Digital</div>
+            <div class="dash-subtitle">Tu perfil profesional visible para las empresas</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px">
+            <div>
+              <div class="profile-header-card">
+                <div class="profile-avatar">JP</div>
+                <div class="profile-name">Juan Carlos Pérez</div>
+                <div class="profile-role">Ing. en Sistemas · UNI Managua</div>
+                <div class="profile-meta">
+                  <div class="profile-meta-item"><i class="fa-solid fa-location-dot"></i> Managua, NI</div>
+                  <div class="profile-meta-item"><i class="fa-solid fa-envelope"></i> juan.perez@uni.edu.ni</div>
+                </div>
+              </div>
+              <div class="card" style="margin-bottom:16px">
+                <div class="card-header">
+                  <div class="card-title">Habilidades</div><button class="btn btn-ghost btn-sm">+ Agregar</button>
+                </div>
+                <div class="skills-cloud">
+                  <div class="skill-tag-edit">JavaScript <i class="fa-solid fa-xmark"></i></div>
+                  <div class="skill-tag-edit">React <i class="fa-solid fa-xmark"></i></div>
+                  <div class="skill-tag-edit">Node.js <i class="fa-solid fa-xmark"></i></div>
+                  <div class="skill-tag-edit">MySQL <i class="fa-solid fa-xmark"></i></div>
+                  <div class="skill-tag-edit">Python <i class="fa-solid fa-xmark"></i></div>
+                  <div class="skill-tag-edit">Inglés B2 <i class="fa-solid fa-xmark"></i></div>
+                  <div class="skill-tag-edit">Git <i class="fa-solid fa-xmark"></i></div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">Completitud</div>
+                </div>
+                <div style="margin-bottom:8px;display:flex;justify-content:space-between;font-size:13px">
+                  <span style="color:var(--text-mid)">Perfil completado</span><span style="font-weight:600">85%</span>
+                </div>
+                <div style="height:8px;background:var(--surface2);border-radius:40px;overflow:hidden">
+                  <div
+                    style="height:100%;width:85%;background:linear-gradient(90deg,var(--blue),var(--teal));border-radius:40px">
+                  </div>
+                </div>
+                <div
+                  style="margin-top:16px;display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--text-mid)">
+                  <div style="display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check"
+                      style="color:var(--teal)"></i> Información básica</div>
+                  <div style="display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check"
+                      style="color:var(--teal)"></i> Experiencia laboral</div>
+                  <div style="display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check"
+                      style="color:var(--teal)"></i> Habilidades</div>
+                  <div style="display:flex;align-items:center;gap:8px"><i class="fa-regular fa-circle"
+                      style="color:var(--amber)"></i> Proyectos personales</div>
+                  <div style="display:flex;align-items:center;gap:8px"><i class="fa-regular fa-circle"
+                      style="color:var(--amber)"></i> Foto de perfil</div>
+                </div>
+                <button class="btn btn-primary" style="width:100%;margin-top:16px"
+                  onclick="showToast('success','¡CV exportado en PDF!')"><i class="fa-solid fa-file-pdf"></i> Exportar
+                  CV en PDF</button>
+              </div>
+            </div>
+            <div>
+              <div class="card" style="margin-bottom:16px">
+                <div class="card-header">
+                  <div class="card-title">Experiencia</div><button class="btn btn-ghost btn-sm">+ Agregar</button>
+                </div>
+                <ul class="timeline">
+                  <li>
+                    <div class="timeline-header">
+                      <div>
+                        <div class="timeline-title">Desarrollador Web Jr.</div>
+                        <div class="timeline-sub">FreelanceTech · Managua</div>
+                      </div>
+                      <div class="timeline-date">Ene 2024 – Presente</div>
+                    </div>
+                    <p style="font-size:13px;color:var(--text-mid)">Desarrollo de aplicaciones web con React y Node.js.
+                      Gestión de bases de datos MySQL.</p>
+                  </li>
+                  <li>
+                    <div class="timeline-header">
+                      <div>
+                        <div class="timeline-title">Pasante de TI</div>
+                        <div class="timeline-sub">Grupo Pellas · Managua</div>
+                      </div>
+                      <div class="timeline-date">Jul – Dic 2023</div>
+                    </div>
+                    <p style="font-size:13px;color:var(--text-mid)">Soporte técnico, mantenimiento de sistemas y
+                      automatización de reportes con Python.</p>
+                  </li>
+                </ul>
+              </div>
+              <div class="card" style="margin-bottom:16px">
+                <div class="card-header">
+                  <div class="card-title">Educación</div><button class="btn btn-ghost btn-sm">+ Agregar</button>
+                </div>
+                <ul class="timeline">
+                  <li>
+                    <div class="timeline-header">
+                      <div>
+                        <div class="timeline-title">Ing. en Sistemas de Información</div>
+                        <div class="timeline-sub">Universidad Nacional de Ingeniería (UNI)</div>
+                      </div>
+                      <div class="timeline-date">2020 – 2025</div>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">Proyectos</div><button class="btn btn-ghost btn-sm">+ Agregar</button>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:14px">
+                  <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                      <div>
+                        <div style="font-weight:600;font-size:14px;color:var(--navy)">Sistema de inventario</div>
+                        <div style="font-size:12px;color:var(--text-soft);margin-top:2px">React · Node.js · MySQL</div>
+                      </div>
+                      <a href="#" style="color:var(--blue);font-size:13px"><i
+                          class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                    </div>
+                    <p style="font-size:13px;color:var(--text-mid);margin-top:8px">App web de control de inventario con
+                      reportes automáticos y gestión de usuarios con roles.</p>
+                  </div>
+                  <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                      <div>
+                        <div style="font-weight:600;font-size:14px;color:var(--navy)">App de presupuesto personal</div>
+                        <div style="font-size:12px;color:var(--text-soft);margin-top:2px">Python · Flask · PostgreSQL
+                        </div>
+                      </div>
+                      <a href="#" style="color:var(--blue);font-size:13px"><i
+                          class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- NOTIFICATIONS TAB -->
+        <div class="dash-tab" id="tab-notifications">
+          <div class="dash-header">
+            <div class="dash-title">Notificaciones</div>
+          </div>
+          <div class="card">
+            <ul class="notif-list">
+              <li class="notif-item">
+                <div class="notif-icon" style="background:var(--teal-pale)"><i class="fa-solid fa-check"
+                    style="color:var(--teal)"></i></div>
+                <div class="notif-content">
+                  <p><strong>Banco LAFISE</strong> ha aceptado tu aplicación para el puesto de <strong>Analista de
+                      Datos</strong>. ¡Felicidades!</p>
+                  <span>Hace 2 horas</span>
+                </div>
+                <div class="notif-dot"></div>
+              </li>
+              <li class="notif-item">
+                <div class="notif-icon" style="background:var(--blue-pale)"><i class="fa-solid fa-eye"
+                    style="color:var(--blue)"></i></div>
+                <div class="notif-content">
+                  <p><strong>TechNica Labs</strong> revisó tu perfil y está evaluando tu candidatura para
+                    <strong>Frontend Developer Jr.</strong>
+                  </p>
+                  <span>Hace 1 día</span>
+                </div>
+                <div class="notif-dot"></div>
+              </li>
+              <li class="notif-item">
+                <div class="notif-icon" style="background:var(--amber-pale)"><i class="fa-solid fa-star"
+                    style="color:var(--amber)"></i></div>
+                <div class="notif-content">
+                  <p>Nuevas vacantes disponibles que coinciden con tu perfil: <strong>5 nuevas oportunidades</strong> en
+                    Tecnología.</p>
+                  <span>Hace 2 días</span>
+                </div>
+              </li>
+              <li class="notif-item">
+                <div class="notif-icon" style="background:var(--coral-pale)"><i class="fa-solid fa-xmark"
+                    style="color:var(--coral)"></i></div>
+                <div class="notif-content">
+                  <p><strong>Claro Nicaragua</strong> ha actualizado el estado de tu aplicación para <strong>Pasante de
+                      Marketing</strong> a rechazado.</p>
+                  <span>Hace 5 días</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- JOBS TAB -->
+        <div class="dash-tab" id="tab-jobs">
+          <div class="dash-header">
+            <div class="dash-title">Explorar Empleos</div>
+          </div>
+          <div class="jobs-grid" id="dash-jobs-grid"></div>
+        </div>
+
+        <!-- SAVED TAB -->
+        <div class="dash-tab" id="tab-saved">
+          <div class="dash-header">
+            <div class="dash-title">Empleos guardados</div>
+          </div>
+          <div class="jobs-grid" id="saved-jobs-grid"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ===== COMPANY DASHBOARD ===== -->
+  <div class="page" id="page-company-dash">
+    <div class="dashboard">
+      <aside class="sidebar">
+        <div class="sidebar-section">
+          <div style="padding:0 24px 24px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div
+                style="width:44px;height:44px;border-radius:12px;background:rgba(29,92,255,0.2);display:flex;align-items:center;justify-content:center;font-size:20px">
+                💻</div>
+              <div>
+                <div style="color:#fff;font-size:14px;font-weight:600">TechNica Labs</div>
+                <div style="color:rgba(255,255,255,0.4);font-size:12px">Empresa verificada</div>
+              </div>
+            </div>
+          </div>
+          <button class="sidebar-item active" onclick="switchCompanyTab('company-overview')"><i
+              class="fa-solid fa-gauge"></i> Dashboard</button>
+          <button class="sidebar-item" onclick="switchCompanyTab('vacancies')"><i class="fa-solid fa-list"></i> Mis
+            vacantes</button>
+          <button class="sidebar-item" onclick="switchCompanyTab('candidates')"><i class="fa-solid fa-users"></i>
+            Candidatos <span class="sidebar-badge"><span class="badge badge-coral">12</span></span></button>
+          <button class="sidebar-item" onclick="switchCompanyTab('new-vacancy')"><i class="fa-solid fa-plus-circle"></i>
+            Nueva vacante</button>
+        </div>
+        <div style="padding:16px 24px;border-top:1px solid rgba(255,255,255,0.08);margin-top:40px">
+          <button class="sidebar-item" onclick="logout()" style="color:rgba(255,84,73,0.8)"><i
+              class="fa-solid fa-right-from-bracket"></i> Cerrar sesión</button>
+        </div>
+      </aside>
+      <main class="dash-main">
+        <!-- COMPANY OVERVIEW -->
+        <div class="dash-tab active" id="tab-company-overview">
+          <div class="dash-header">
+            <div class="dash-title">Panel de Empresa</div>
+            <div class="dash-subtitle">TechNica Labs — Managua, Nicaragua</div>
+          </div>
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-icon" style="background:var(--blue-pale)"><i class="fa-solid fa-list"
+                  style="color:var(--blue)"></i></div>
+              <div class="stat-val">6</div>
+              <div class="stat-lbl">Vacantes activas</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:var(--coral-pale)"><i class="fa-solid fa-users"
+                  style="color:var(--coral)"></i></div>
+              <div class="stat-val">47</div>
+              <div class="stat-lbl">Candidatos totales</div>
+              <div class="stat-trend stat-up"><i class="fa-solid fa-arrow-trend-up"></i> +12 esta semana</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:var(--teal-pale)"><i class="fa-solid fa-eye"
+                  style="color:var(--teal)"></i></div>
+              <div class="stat-val">1.2K</div>
+              <div class="stat-lbl">Vistas de vacantes</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:var(--amber-pale)"><i class="fa-solid fa-check"
+                  style="color:var(--amber)"></i></div>
+              <div class="stat-val">8</div>
+              <div class="stat-lbl">Contratados</div>
+            </div>
+          </div>
+          <div class="two-col">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Aplicaciones por vacante</div>
+              </div>
+              <div class="chart-container"><canvas id="companyChart1"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Candidatos por estado</div>
+              </div>
+              <div class="chart-container"><canvas id="companyChart2"></canvas></div>
+            </div>
+          </div>
+          <div class="full-col">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Candidatos recientes</div><button class="btn btn-ghost btn-sm"
+                  onclick="switchCompanyTab('candidates')">Ver todos</button>
+              </div>
+              <div id="recent-candidates"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VACANCIES -->
+        <div class="dash-tab" id="tab-vacancies">
+          <div class="dash-header">
+            <div class="dash-title">Mis Vacantes</div><button class="btn btn-primary"
+              onclick="switchCompanyTab('new-vacancy')" style="margin-top:8px"><i class="fa-solid fa-plus"></i> Nueva
+              vacante</button>
+          </div>
+          <div id="vacancies-list"></div>
+        </div>
+
+        <!-- CANDIDATES -->
+        <div class="dash-tab" id="tab-candidates">
+          <div class="dash-header">
+            <div class="dash-title">Gestión de Candidatos</div>
+          </div>
+          <div class="card">
+            <div class="search-filters" style="margin-bottom:16px">
+              <button class="filter-chip active">Todos (47)</button>
+              <button class="filter-chip">Pendientes (20)</button>
+              <button class="filter-chip">En revisión (15)</button>
+              <button class="filter-chip">Aceptados (8)</button>
+              <button class="filter-chip">Rechazados (4)</button>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Candidato</th>
+                  <th>Puesto</th>
+                  <th>Universidad</th>
+                  <th>Aplicó</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="company-cell">
+                      <div class="candidate-avatar" style="display:inline-flex;width:32px;height:32px;font-size:12px">JP
+                      </div><span style="margin-left:8px">Juan Pérez</span>
+                    </div>
+                  </td>
+                  <td>Frontend Developer Jr.</td>
+                  <td>UNI</td>
+                  <td>20 May</td>
+                  <td><span class="status-pill status-review">En revisión</span></td>
+                  <td>
+                    <div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm">Ver CV</button><button
+                        class="btn btn-primary btn-sm"
+                        onclick="showToast('success','Estado actualizado')">Aceptar</button></div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="company-cell">
+                      <div class="candidate-avatar"
+                        style="display:inline-flex;width:32px;height:32px;font-size:12px;background:var(--teal-pale);color:var(--teal)">
+                        MR</div><span style="margin-left:8px">María Rodríguez</span>
+                    </div>
+                  </td>
+                  <td>Backend Developer</td>
+                  <td>UNAN</td>
+                  <td>19 May</td>
+                  <td><span class="status-pill status-pending">Pendiente</span></td>
+                  <td>
+                    <div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm">Ver CV</button><button
+                        class="btn btn-primary btn-sm"
+                        onclick="showToast('success','Estado actualizado')">Aceptar</button></div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="company-cell">
+                      <div class="candidate-avatar"
+                        style="display:inline-flex;width:32px;height:32px;font-size:12px;background:var(--coral-pale);color:var(--coral)">
+                        CL</div><span style="margin-left:8px">Carlos López</span>
+                    </div>
+                  </td>
+                  <td>Full Stack Developer</td>
+                  <td>UAM</td>
+                  <td>18 May</td>
+                  <td><span class="status-pill status-accepted">Aceptado</span></td>
+                  <td>
+                    <div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm">Ver CV</button><button
+                        class="btn btn-teal btn-sm"><i class="fa-solid fa-envelope"></i></button></div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- NEW VACANCY -->
+        <div class="dash-tab" id="tab-new-vacancy">
+          <div class="dash-header">
+            <div class="dash-title">Publicar nueva vacante</div>
+          </div>
+          <div class="card">
+            <div class="form-row">
+              <div class="form-group"><label>Título del puesto *</label><input type="text"
+                  placeholder="Ej: Desarrollador Frontend Jr."></div>
+              <div class="form-group"><label>Categoría *</label><select>
+                  <option>Tecnología</option>
+                  <option>Finanzas</option>
+                  <option>Diseño</option>
+                  <option>Marketing</option>
+                  <option>Administración</option>
+                </select></div>
+            </div>
+            <div class="form-group"><label>Descripción del puesto *</label><textarea
+                placeholder="Describe el puesto, responsabilidades y lo que hace el día a día..."></textarea></div>
+            <div class="form-group"><label>Requisitos</label><textarea
+                placeholder="Lista los requisitos principales para el puesto..."></textarea></div>
+            <div class="form-row">
+              <div class="form-group"><label>Modalidad</label><select>
+                  <option>Remoto</option>
+                  <option>Presencial</option>
+                  <option>Híbrido</option>
+                </select></div>
+              <div class="form-group"><label>Tipo de empleo</label><select>
+                  <option>Tiempo completo</option>
+                  <option>Medio tiempo</option>
+                  <option>Pasantía</option>
+                  <option>Por proyecto</option>
+                </select></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Salario mínimo (USD)</label><input type="number" placeholder="400"></div>
+              <div class="form-group"><label>Salario máximo (USD)</label><input type="number" placeholder="800"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Ubicación</label><input type="text" placeholder="Managua, Nicaragua"></div>
+              <div class="form-group"><label>Fecha límite de aplicación</label><input type="date"></div>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:8px">
+              <button class="btn btn-primary" onclick="createJob()"><i
+                  class="fa-solid fa-paper-plane"></i> Publicar vacante</button>
+              <button class="btn btn-ghost">Guardar borrador</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ===== ADMIN DASHBOARD ===== -->
+  <div class="page" id="page-admin-dash">
+    <div class="dashboard">
+      <aside class="sidebar">
+        <div class="sidebar-section">
+          <div style="padding:0 24px 24px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div
+                style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--coral),var(--amber));display:flex;align-items:center;justify-content:center;font-size:18px">
+                👑</div>
+              <div>
+                <div style="color:#fff;font-size:14px;font-weight:600">Administrador</div>
+                <div style="color:rgba(255,255,255,0.4);font-size:12px">Sistema JuvaConnect</div>
+              </div>
+            </div>
+          </div>
+          <button class="sidebar-item active" onclick="switchAdminTab('admin-overview')"><i
+              class="fa-solid fa-gauge"></i> Estadísticas</button>
+          <button class="sidebar-item" onclick="switchAdminTab('admin-users')"><i class="fa-solid fa-users"></i>
+            Usuarios</button>
+          <button class="sidebar-item" onclick="switchAdminTab('admin-companies')"><i class="fa-solid fa-building"></i>
+            Empresas</button>
+          <button class="sidebar-item" onclick="switchAdminTab('admin-vacancies')"><i class="fa-solid fa-briefcase"></i>
+            Vacantes</button>
+        </div>
+      </aside>
+      <main class="dash-main">
+        <div class="dash-tab active" id="tab-admin-overview">
+          <div class="dash-header">
+            <div class="dash-title">Panel Administrativo</div>
+            <div class="dash-subtitle">Estadísticas generales de la plataforma</div>
+          </div>
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-icon" style="background:var(--blue-pale)"><i class="fa-solid fa-user-graduate"
+                  style="color:var(--blue)"></i></div>
+              <div class="stat-val">12,450</div>
+              <div class="stat-lbl">Estudiantes registrados</div>
+              <div class="stat-trend stat-up">+234 este mes</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:var(--teal-pale)"><i class="fa-solid fa-building"
+                  style="color:var(--teal)"></i></div>
+              <div class="stat-val">183</div>
+              <div class="stat-lbl">Empresas activas</div>
+              <div class="stat-trend stat-up">+12 este mes</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:var(--coral-pale)"><i class="fa-solid fa-briefcase"
+                  style="color:var(--coral)"></i></div>
+              <div class="stat-val">2,410</div>
+              <div class="stat-lbl">Vacantes publicadas</div>
+              <div class="stat-trend stat-up">+87 esta semana</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:var(--amber-pale)"><i class="fa-solid fa-paper-plane"
+                  style="color:var(--amber)"></i></div>
+              <div class="stat-val">18,920</div>
+              <div class="stat-lbl">Aplicaciones totales</div>
+              <div class="stat-trend stat-up">+1,200 este mes</div>
+            </div>
+          </div>
+          <div class="two-col">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Crecimiento mensual</div>
+              </div>
+              <div class="chart-container"><canvas id="adminChart1"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Categorías más populares</div>
+              </div>
+              <div class="chart-container"><canvas id="adminChart2"></canvas></div>
+            </div>
+          </div>
+          <div class="full-col">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Empresas pendientes de aprobación</div>
+              </div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Empresa</th>
+                    <th>Registrada</th>
+                    <th>Sector</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <div class="company-cell">
+                        <div class="cell-icon">🚀</div><span>InnovateTech NI</span>
+                      </div>
+                    </td>
+                    <td>22 May 2025</td>
+                    <td>Tecnología</td>
+                    <td><span class="status-pill status-pending">Pendiente</span></td>
+                    <td>
+                      <div style="display:flex;gap:6px"><button class="btn btn-teal btn-sm"
+                          onclick="showToast('success','Empresa aprobada')">Aprobar</button><button
+                          class="btn btn-coral btn-sm"
+                          onclick="showToast('error','Empresa rechazada')">Rechazar</button></div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="company-cell">
+                        <div class="cell-icon">🏥</div><span>MediCenter Clinic</span>
+                      </div>
+                    </td>
+                    <td>21 May 2025</td>
+                    <td>Salud</td>
+                    <td><span class="status-pill status-pending">Pendiente</span></td>
+                    <td>
+                      <div style="display:flex;gap:6px"><button class="btn btn-teal btn-sm"
+                          onclick="showToast('success','Empresa aprobada')">Aprobar</button><button
+                          class="btn btn-coral btn-sm"
+                          onclick="showToast('error','Empresa rechazada')">Rechazar</button></div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="dash-tab" id="tab-admin-users">
+          <div class="dash-header">
+            <div class="dash-title">Gestión de Usuarios</div>
+          </div>
+          <div class="card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Email</th>
+                  <th>Tipo</th>
+                  <th>Registrado</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Juan Carlos Pérez</td>
+                  <td>juan.perez@uni.edu.ni</td>
+                  <td><span class="tag tag-blue">Estudiante</span></td>
+                  <td>10 Ene 2025</td>
+                  <td><span class="status-pill status-active">Activo</span></td>
+                  <td><button class="btn btn-ghost btn-sm">Ver</button></td>
+                </tr>
+                <tr>
+                  <td>María Rodríguez</td>
+                  <td>maria.r@unan.edu.ni</td>
+                  <td><span class="tag tag-blue">Estudiante</span></td>
+                  <td>15 Feb 2025</td>
+                  <td><span class="status-pill status-active">Activo</span></td>
+                  <td><button class="btn btn-ghost btn-sm">Ver</button></td>
+                </tr>
+                <tr>
+                  <td>Admin TechNica</td>
+                  <td>rrhh@technica.com.ni</td>
+                  <td><span class="tag tag-navy">Empresa</span></td>
+                  <td>5 Mar 2025</td>
+                  <td><span class="status-pill status-active">Activo</span></td>
+                  <td><button class="btn btn-ghost btn-sm">Ver</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dash-tab" id="tab-admin-companies">
+          <div class="dash-header">
+            <div class="dash-title">Gestión de Empresas</div>
+          </div>
+          <div class="card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Empresa</th>
+                  <th>Vacantes</th>
+                  <th>Candidatos</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="company-cell">
+                      <div class="cell-icon">💻</div><span>TechNica Labs</span>
+                    </div>
+                  </td>
+                  <td>6</td>
+                  <td>47</td>
+                  <td><span class="status-pill status-active">Verificada</span></td>
+                  <td><button class="btn btn-ghost btn-sm">Gestionar</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="company-cell">
+                      <div class="cell-icon">🏦</div><span>Banco LAFISE</span>
+                    </div>
+                  </td>
+                  <td>4</td>
+                  <td>120</td>
+                  <td><span class="status-pill status-active">Verificada</span></td>
+                  <td><button class="btn btn-ghost btn-sm">Gestionar</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="company-cell">
+                      <div class="cell-icon">📱</div><span>Claro Nicaragua</span>
+                    </div>
+                  </td>
+                  <td>8</td>
+                  <td>89</td>
+                  <td><span class="status-pill status-active">Verificada</span></td>
+                  <td><button class="btn btn-ghost btn-sm">Gestionar</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dash-tab" id="tab-admin-vacancies">
+          <div class="dash-header">
+            <div class="dash-title">Gestión de Vacantes</div>
+          </div>
+          <div class="card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Vacante</th>
+                  <th>Empresa</th>
+                  <th>Categoría</th>
+                  <th>Candidatos</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Frontend Developer Jr.</td>
+                  <td>TechNica Labs</td>
+                  <td>Tecnología</td>
+                  <td>12</td>
+                  <td><span class="status-pill status-active">Activa</span></td>
+                  <td><button class="btn btn-coral btn-sm"
+                      onclick="showToast('error','Vacante eliminada')">Eliminar</button></td>
+                </tr>
+                <tr>
+                  <td>Analista de Datos</td>
+                  <td>Banco LAFISE</td>
+                  <td>Finanzas</td>
+                  <td>28</td>
+                  <td><span class="status-pill status-active">Activa</span></td>
+                  <td><button class="btn btn-coral btn-sm"
+                      onclick="showToast('error','Vacante eliminada')">Eliminar</button></td>
+                </tr>
+                <tr>
+                  <td>Pasante Marketing Digital</td>
+                  <td>Claro Nicaragua</td>
+                  <td>Marketing</td>
+                  <td>45</td>
+                  <td><span class="status-pill status-inactive">Cerrada</span></td>
+                  <td><button class="btn btn-coral btn-sm"
+                      onclick="showToast('error','Vacante eliminada')">Eliminar</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ===== JOB DETAIL MODAL ===== -->
+  <div class="modal-overlay" id="job-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-company">
+          <div class="modal-company-logo">💻</div>
+          <div class="modal-company-info">
+            <h2>Desarrollador Frontend Jr.</h2>
+            <p>TechNica Labs · Managua, Nicaragua</p>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModal('job-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-tags">
+          <span class="tag tag-teal"><i class="fa-solid fa-wifi"></i> Remoto</span>
+          <span class="tag tag-blue">Tiempo completo</span>
+          <span class="tag tag-gray">Tecnología</span>
+          <span class="tag tag-amber"><i class="fa-solid fa-dollar-sign"></i> $600–900/mes</span>
+        </div>
+        <div class="detail-section">
+          <h4><i class="fa-solid fa-file-lines" style="color:var(--blue)"></i> Descripción</h4>
+          <p style="font-size:14px;color:var(--text-mid);line-height:1.8">Buscamos un desarrollador Frontend junior
+            apasionado con conocimientos en React y JavaScript moderno para unirse a nuestro equipo de producto.
+            Trabajarás en proyectos reales y tendrás oportunidades de crecimiento profesional.</p>
+        </div>
+        <div class="detail-section">
+          <h4><i class="fa-solid fa-list-check" style="color:var(--teal)"></i> Requisitos</h4>
+          <ul>
+            <li>Conocimientos en HTML5, CSS3, JavaScript ES6+</li>
+            <li>Experiencia o proyectos con React.js</li>
+            <li>Familiaridad con Git y trabajo en equipo</li>
+            <li>Inglés básico-intermedio (lectura técnica)</li>
+            <li>Estudiante de últimos años o recién graduado</li>
+          </ul>
+        </div>
+        <div class="detail-section">
+          <h4><i class="fa-solid fa-star" style="color:var(--amber)"></i> Beneficios</h4>
+          <ul>
+            <li>Salario competitivo en USD</li>
+            <li>Trabajo 100% remoto con horario flexible</li>
+            <li>Mentorship y plan de carrera</li>
+            <li>Acceso a cursos y certificaciones</li>
+          </ul>
+        </div>
+        <div class="detail-section">
+          <h4><i class="fa-solid fa-code" style="color:var(--coral)"></i> Habilidades requeridas</h4>
+          <div class="skills-grid">
+            <span class="skill-tag">React.js</span><span class="skill-tag">JavaScript</span>
+            <span class="skill-tag">HTML/CSS</span><span class="skill-tag">Git</span>
+            <span class="skill-tag">REST APIs</span><span class="skill-tag">Figma</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div>
+          <div style="font-size:13px;color:var(--text-soft)">Publicado hace 3 días · 12 candidatos</div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-ghost" onclick="closeModal('job-modal')"><i class="fa-regular fa-heart"></i>
+            Guardar</button>
+          <button class="btn btn-primary" onclick="applyJob()"><i class="fa-solid fa-paper-plane"></i> Aplicar
+            ahora</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== AUTH MODAL ===== -->
+  <div class="modal-overlay" id="auth-modal">
+    <div class="modal auth-modal">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:var(--navy)"
+            id="auth-modal-title">Bienvenido a JuvaConnect</h2>
+          <p style="color:var(--text-soft);font-size:13px;margin-top:4px">Tu plataforma de empleo universitaria</p>
+        </div>
+        <button class="modal-close" onclick="closeModal('auth-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tab-login-btn" onclick="switchAuthTab('login')">Iniciar sesión</button>
+          <button class="auth-tab" id="tab-register-btn" onclick="switchAuthTab('register')">Registrarse</button>
+        </div>
+
+        <!-- LOGIN -->
+        <div id="login-form">
+          <div class="form-group"><label>Correo electrónico</label><input type="email" placeholder="tu@email.com"></div>
+          <div class="form-group"><label>Contraseña</label><input type="password" placeholder="••••••••"></div>
+          <button class="btn btn-primary" style="width:100%;margin-bottom:16px" onclick="loginAs('student')">Iniciar
+            sesión como Estudiante</button>
+          <button class="btn btn-navy" style="width:100%;margin-bottom:12px" onclick="loginAs('company')">Iniciar sesión
+            como Empresa</button>
+          <button class="btn btn-ghost" style="width:100%;font-size:12px;color:var(--coral)"
+            onclick="loginAs('admin')"><i class="fa-solid fa-shield"></i> Acceso Administrador (demo)</button>
+          <div style="text-align:center;margin-top:16px;font-size:13px;color:var(--text-soft)"><a href="#"
+              style="color:var(--blue);text-decoration:none">¿Olvidaste tu contraseña?</a></div>
+        </div>
+
+        <!-- REGISTER -->
+        <div id="register-form" class="hide">
+          <div style="margin-bottom:16px">
+            <div style="font-size:13px;font-weight:500;color:var(--text-mid);margin-bottom:10px">Tipo de cuenta</div>
+            <div class="role-select">
+              <div class="role-opt active" onclick="selectRole(this)"><i
+                  class="fa-solid fa-graduation-cap"></i><span>Estudiante</span></div>
+              <div class="role-opt" onclick="selectRole(this)"><i class="fa-solid fa-building"></i><span>Empresa</span>
+              </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Nombre(s)</label><input type="text" placeholder="Juan Carlos"></div>
+            <div class="form-group"><label>Apellidos</label><input type="text" placeholder="Pérez García"></div>
+          </div>
+          <div class="form-group"><label>Correo electrónico</label><input type="email" placeholder="tu@email.com"></div>
+          <div class="form-group"><label>Universidad/Carrera</label><input type="text"
+              placeholder="UNI · Ing. en Sistemas"></div>
+          <div class="form-row">
+            <div class="form-group"><label>Contraseña</label><input type="password" placeholder="••••••••"></div>
+            <div class="form-group"><label>Confirmar contraseña</label><input type="password" placeholder="••••••••">
+            </div>
+          </div>
+          <button class="btn btn-primary" style="width:100%" onclick="registerUser()"><i
+              class="fa-solid fa-user-plus"></i> Crear mi cuenta</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- VIEW SWITCHER BAR (bottom, for demo) -->
+  <div
+    style="position:fixed;bottom:0;left:0;right:0;background:var(--navy);padding:10px 20px;display:flex;align-items:center;justify-content:center;gap:10px;z-index:900;border-top:1px solid rgba(255,255,255,0.1)">
+    <span style="color:rgba(255,255,255,0.4);font-size:12px">Vista demo:</span>
+    <button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,0.2);font-size:12px"
+      onclick="showPage('landing')">🏠 Landing</button>
+    <button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,0.2);font-size:12px"
+      onclick="showPage('student-dash')">🎓 Estudiante</button>
+    <button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,0.2);font-size:12px"
+      onclick="showPage('company-dash')">🏢 Empresa</button>
+    <button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,0.2);font-size:12px"
+      onclick="showPage('admin-dash')">👑 Admin</button>
+  </div>
+  <script src="script.js"></script>
+</body>
+
+</html>
