@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Resumen del Proyecto: JuvaConnect</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            line-height: 1.6; 
+            max-width: 800px; 
+            margin: 40px auto; 
+            color: #333; 
+            padding: 0 20px;
+        }
+        h1 { 
+            color: #1d5cff; 
+            border-bottom: 2px solid #1d5cff; 
+            padding-bottom: 10px; 
+        }
+        h2 { 
+            color: #2a9d8f; 
+            margin-top: 30px;
+        }
+        ul { 
+            margin-bottom: 20px; 
+        }
+        li { 
+            margin-bottom: 8px; 
+        }
+        .code { 
+            background: #f4f4f4; 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+            font-family: monospace; 
+            color: #d62828;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Resumen del Proyecto: JuvaConnect</h1>
+    <p><strong>JuvaConnect</strong> es una plataforma web (Bolsa de Empleo Universitaria) que conecta a estudiantes universitarios en Nicaragua con empresas para oportunidades de pasantías y empleos junior.</p>
+
+    <h2>1. Arquitectura y Tecnologías</h2>
+    <ul>
+        <li><strong>Frontend (Cliente):</strong> Single Page Application (SPA) construida con HTML5, CSS3 y Vanilla JavaScript (sin frameworks externos complejos).</li>
+        <li><strong>Backend (Servidor):</strong> API REST desarrollada en Node.js utilizando el framework Express.</li>
+        <li><strong>Base de Datos:</strong> PostgreSQL para el almacenamiento relacional.</li>
+    </ul>
+
+    <h2>2. Estructura de Archivos</h2>
+    <ul>
+        <li><span class="code">bolsa_empleo_universitaria.html</span>: Archivo principal de la interfaz. Funciona como SPA, alternando vistas (Landing Page, Panel de Estudiante, Panel de Empresa).</li>
+        <li><span class="code">styles.css</span>: Reglas de diseño, colores y maquetación visual.</li>
+        <li><span class="code">script.js</span>: Lógica del navegador (consumo de la API, interacciones y navegación).</li>
+        <li><span class="code">server.js</span>: Servidor backend que maneja la conexión a la base de datos y provee las rutas de la API.</li>
+        <li><span class="code">schema.sql</span>: Script de base de datos para la creación de tablas (usuarios, empresas, vacantes, etc.) y generación de datos de prueba.</li>
+        <li><span class="code">package.json</span>: Configuración del proyecto Node.js y sus dependencias.</li>
+    </ul>
+
+    <h2>3. Funcionalidades Principales</h2>
+    <ul>
+        <li><strong>Estudiantes:</strong> Registro, creación de un CV Digital, búsqueda de ofertas laborales y postulación a vacantes.</li>
+        <li><strong>Empresas:</strong> Registro de nuevas vacantes y gestión de los candidatos (aceptar, rechazar o revisar postulaciones).</li>
+        <li><strong>Backend (API REST):</strong> Rutas para obtener vacantes (<span class="code">GET /api/jobs</span>), iniciar sesión (<span class="code">POST /api/login</span>), registrar usuarios (<span class="code">POST /api/register</span>) y enviar postulaciones (<span class="code">POST /api/applications</span>).</li>
+    </ul>
+
+</body>
+</html>
