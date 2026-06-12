@@ -28,6 +28,11 @@ CREATE TABLE users (
     -- Campos específicos de Estudiantes
     career VARCHAR(100),
     university VARCHAR(100),
+    phone VARCHAR(20),
+    dob DATE,
+    age INT,
+    address VARCHAR(255),
+    cedula VARCHAR(20),
     location VARCHAR(100),
     profile_completion INT DEFAULT 0,
     

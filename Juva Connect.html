@@ -23,9 +23,9 @@
     </a>
     <div class="nav-links">
       <button class="nav-link active" onclick="showPage('landing')">Inicio</button>
-      <button class="nav-link" onclick="showPage('landing');scrollTo('#jobs-section')">Empleos</button>
-      <button class="nav-link" onclick="showPage('landing');scrollTo('#companies-section')">Empresas</button>
-      <button class="nav-link" onclick="showPage('landing');scrollTo('#how-section')">¿Cómo funciona?</button>
+      <button class="nav-link" onclick="showPage('landing');scrollToSection('#jobs-section')">Empleos</button>
+      <button class="nav-link" onclick="showPage('landing');scrollToSection('#companies-section')">Empresas</button>
+      <button class="nav-link" onclick="showPage('landing');scrollToSection('#how-section')">¿Cómo funciona?</button>
     </div>
     <div class="nav-actions" id="nav-auth-btns">
       <button class="btn btn-ghost btn-sm" onclick="openModal('auth-modal');switchAuthTab('login')">Iniciar
@@ -52,7 +52,7 @@
         <p class="hero-desc">Conectamos estudiantes universitarios con las mejores empresas que buscan talento joven.
           Prácticas, pasantías y empleos junior en un solo lugar.</p>
         <div class="hero-actions">
-          <button class="btn btn-hero-primary" onclick="scrollTo('#jobs-section')"><i
+          <button class="btn btn-hero-primary" onclick="scrollToSection('#jobs-section')"><i
               class="fa-solid fa-magnifying-glass"></i> Buscar empleo</button>
           <button class="btn btn-hero-secondary" onclick="openModal('auth-modal');switchAuthTab('register')"><i
               class="fa-solid fa-building"></i> Publicar vacante</button>
@@ -259,12 +259,12 @@
         <div class="sidebar-section">
           <div style="padding:0 24px 24px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:16px">
             <div style="display:flex;align-items:center;gap:12px">
-              <div
+              <div class="sidebar-avatar-init"
                 style="width:44px;height:44px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:#fff">
                 JP</div>
               <div>
-                <div style="color:#fff;font-size:14px;font-weight:600">Juan Pérez</div>
-                <div style="color:rgba(255,255,255,0.4);font-size:12px">Ing. en Sistemas</div>
+                <div class="sidebar-name" style="color:#fff;font-size:14px;font-weight:600">Juan Pérez</div>
+                <div class="sidebar-career" style="color:rgba(255,255,255,0.4);font-size:12px">Ing. en Sistemas</div>
               </div>
             </div>
           </div>
@@ -295,7 +295,7 @@
         <!-- OVERVIEW TAB -->
         <div class="dash-tab active" id="tab-overview">
           <div class="dash-header">
-            <div class="dash-title">Bienvenido, Juan 👋</div>
+            <div class="dash-title" id="student-welcome-title">Bienvenido, Juan 👋</div>
             <div class="dash-subtitle">Aquí está el resumen de tu actividad esta semana</div>
           </div>
           <div class="stats-row">
@@ -431,9 +431,12 @@
 
         <!-- PROFILE TAB -->
         <div class="dash-tab" id="tab-profile">
-          <div class="dash-header">
-            <div class="dash-title">Mi CV Digital</div>
-            <div class="dash-subtitle">Tu perfil profesional visible para las empresas</div>
+          <div class="dash-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div class="dash-title">Mi CV Digital</div>
+              <div class="dash-subtitle">Tu perfil profesional visible para las empresas</div>
+            </div>
+            <button class="btn btn-ghost" onclick="openEditProfileModal()"><i class="fa-solid fa-pen"></i> Editar Perfil</button>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px">
             <div>
@@ -442,8 +445,20 @@
                 <div class="profile-name">Juan Carlos Pérez</div>
                 <div class="profile-role">Ing. en Sistemas · UNI Managua</div>
                 <div class="profile-meta">
-                  <div class="profile-meta-item"><i class="fa-solid fa-location-dot"></i> Managua, NI</div>
-                  <div class="profile-meta-item"><i class="fa-solid fa-envelope"></i> juan.perez@uni.edu.ni</div>
+                  <div class="profile-meta-item profile-location"><i class="fa-solid fa-location-dot"></i> Managua, NI</div>
+                  <div class="profile-meta-item profile-email"><i class="fa-solid fa-envelope"></i> juan.perez@uni.edu.ni</div>
+                </div>
+              </div>
+              <div class="card" style="margin-bottom:16px">
+                <div class="card-header">
+                  <div class="card-title">Información Personal y Contacto</div>
+                </div>
+                <div style="font-size:14px;color:var(--text-mid);line-height:1.6">
+                  <div><strong>Teléfono:</strong> <span id="profile-phone">No especificado</span></div>
+                  <div><strong>Cédula:</strong> <span id="profile-cedula">No especificada</span></div>
+                  <div><strong>Fecha de Nacimiento:</strong> <span id="profile-dob">No especificada</span></div>
+                  <div><strong>Edad:</strong> <span id="profile-age">No especificada</span></div>
+                  <div><strong>Dirección:</strong> <span id="profile-address">No especificada</span></div>
                 </div>
               </div>
               <div class="card" style="margin-bottom:16px">
@@ -674,7 +689,7 @@
         <div class="dash-tab active" id="tab-company-overview">
           <div class="dash-header">
             <div class="dash-title">Panel de Empresa</div>
-            <div class="dash-subtitle">TechNica Labs — Managua, Nicaragua</div>
+            <div class="dash-subtitle" id="company-welcome-subtitle">TechNica Labs — Managua, Nicaragua</div>
           </div>
           <div class="stats-row">
             <div class="stat-card">
@@ -1239,15 +1254,11 @@
 
         <!-- LOGIN -->
         <div id="login-form">
-          <div class="form-group"><label>Correo electrónico</label><input type="email" placeholder="tu@email.com"></div>
-          <div class="form-group"><label>Contraseña</label><input type="password" placeholder="••••••••"></div>
-          <button class="btn btn-primary" style="width:100%;margin-bottom:16px" onclick="loginAs('student')">Iniciar
-            sesión como Estudiante</button>
-          <button class="btn btn-navy" style="width:100%;margin-bottom:12px" onclick="loginAs('company')">Iniciar sesión
-            como Empresa</button>
-          <button class="btn btn-ghost" style="width:100%;font-size:12px;color:var(--coral)"
-            onclick="loginAs('admin')"><i class="fa-solid fa-shield"></i> Acceso Administrador (demo)</button>
-          <div style="text-align:center;margin-top:16px;font-size:13px;color:var(--text-soft)"><a href="#"
+          <div class="form-group"><label>Correo electrónico</label><input type="email" placeholder="estudiante@test.com" id="login-email"></div>
+          <div class="form-group"><label>Contraseña</label><input type="password" placeholder="••••••••" id="login-password"></div>
+          <button class="btn btn-primary" style="width:100%;margin-bottom:16px" onclick="login()">Iniciar sesión</button>
+          <div style="text-align:center;font-size:12px;color:var(--text-soft);margin-bottom:12px;">Cuentas locales: estudiante@test.com, empresa@test.com o admin@test.com<br>Clave para todas: 123</div>
+          <div style="text-align:center;font-size:13px;color:var(--text-soft)"><a href="#"
               style="color:var(--blue);text-decoration:none">¿Olvidaste tu contraseña?</a></div>
         </div>
 
@@ -1262,16 +1273,65 @@
               </div>
             </div>
           </div>
-          <div class="form-row">
-            <div class="form-group"><label>Nombre(s)</label><input type="text" placeholder="Juan Carlos"></div>
-            <div class="form-group"><label>Apellidos</label><input type="text" placeholder="Pérez García"></div>
+          
+          <div class="form-row student-fields">
+            <div class="form-group"><label>Nombre(s)</label><input type="text" placeholder="Juan Carlos" id="reg-student-first"></div>
+            <div class="form-group"><label>Apellidos</label><input type="text" placeholder="Pérez García" id="reg-student-last"></div>
           </div>
-          <div class="form-group"><label>Correo electrónico</label><input type="email" placeholder="tu@email.com"></div>
-          <div class="form-group"><label>Universidad/Carrera</label><input type="text"
-              placeholder="UNI · Ing. en Sistemas"></div>
+          
+          <div class="form-group company-fields hide">
+            <label>Nombre de la Empresa</label>
+            <input type="text" placeholder="TechNica Labs" id="reg-company-name">
+          </div>
+          
           <div class="form-row">
-            <div class="form-group"><label>Contraseña</label><input type="password" placeholder="••••••••"></div>
-            <div class="form-group"><label>Confirmar contraseña</label><input type="password" placeholder="••••••••">
+            <div class="form-group"><label>Correo electrónico</label><input type="email" placeholder="tu@email.com" id="reg-email"></div>
+            <div class="form-group student-fields"><label>Cédula</label><input type="text" placeholder="000-000000-0000A" id="reg-student-cedula"></div>
+          </div>
+          
+          <div class="form-row student-fields">
+            <div class="form-group">
+              <label>Universidad</label>
+              <select id="reg-student-university" onchange="handleUniversityChange(this)" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;background:#f9fbfd;font-family:'Inter',sans-serif;font-size:14px;color:var(--text-dark);outline:none;transition:border-color 0.2s">
+                <option value="">Selecciona tu universidad</option>
+                <option value="UNI">Universidad Nacional de Ingeniería (UNI)</option>
+                <option value="UNAN-Managua">UNAN-Managua</option>
+                <option value="UNAN-León">UNAN-León</option>
+                <option value="UCA">Universidad Centroamericana (UCA)</option>
+                <option value="UAM">Universidad Americana (UAM)</option>
+                <option value="UPOLI">Universidad Politécnica de Nicaragua (UPOLI)</option>
+                <option value="UNA">Universidad Nacional Agraria (UNA)</option>
+                <option value="UCC">Universidad de Ciencias Comerciales (UCC)</option>
+                <option value="Keiser University">Keiser University</option>
+                <option value="UNICA">UNICA</option>
+                <option value="Otra">Otra</option>
+              </select>
+              <input type="text" id="reg-student-university-other" placeholder="Escribe tu universidad..." style="display:none; margin-top:8px;">
+            </div>
+            <div class="form-group">
+              <label>Carrera</label>
+              <input type="text" placeholder="Ing. en Sistemas" id="reg-student-career">
+            </div>
+          </div>
+
+          <div class="form-row student-fields">
+            <div class="form-group"><label>Teléfono</label><input type="tel" placeholder="+505 8888 8888" id="reg-student-phone"></div>
+            <div class="form-group"><label>Dirección</label><input type="text" placeholder="Managua, NI" id="reg-student-address"></div>
+          </div>
+
+          <div class="form-row student-fields">
+            <div class="form-group"><label>Fecha de Nacimiento</label><input type="date" id="reg-student-dob"></div>
+            <div class="form-group"><label>Edad</label><input type="number" placeholder="Ej: 21" min="15" max="100" id="reg-student-age"></div>
+          </div>
+          
+          <div class="form-group company-fields hide">
+            <label>Sector / Industria</label>
+            <input type="text" placeholder="Tecnología" id="reg-company-sector">
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group"><label>Contraseña</label><input type="password" placeholder="••••••••" id="reg-password"></div>
+            <div class="form-group"><label>Confirmar contraseña</label><input type="password" placeholder="••••••••" id="reg-password-confirm">
             </div>
           </div>
           <button class="btn btn-primary" style="width:100%" onclick="registerUser()"><i
@@ -1281,22 +1341,39 @@
     </div>
   </div>
 
+  <!-- ===== EDIT PROFILE MODAL ===== -->
+  <div class="modal-overlay" id="edit-profile-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:var(--navy)">Editar Perfil</h2>
+          <p style="color:var(--text-soft);font-size:13px;margin-top:4px">Actualiza tu información personal</p>
+        </div>
+        <button class="modal-close" onclick="closeModal('edit-profile-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group"><label>Nombre Completo</label><input type="text" id="edit-name"></div>
+          <div class="form-group"><label>Carrera</label><input type="text" id="edit-career"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Teléfono</label><input type="tel" id="edit-phone"></div>
+          <div class="form-group"><label>Cédula</label><input type="text" id="edit-cedula"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Fecha de Nacimiento</label><input type="date" id="edit-dob"></div>
+          <div class="form-group"><label>Edad</label><input type="number" id="edit-age" min="15" max="100"></div>
+        </div>
+        <div class="form-group"><label>Dirección</label><input type="text" id="edit-address"></div>
+        <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="saveProfile()"><i class="fa-solid fa-floppy-disk"></i> Guardar Cambios</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST CONTAINER -->
   <div class="toast-container" id="toast-container"></div>
 
-  <!-- VIEW SWITCHER BAR (bottom, for demo) -->
-  <div
-    style="position:fixed;bottom:0;left:0;right:0;background:var(--navy);padding:10px 20px;display:flex;align-items:center;justify-content:center;gap:10px;z-index:900;border-top:1px solid rgba(255,255,255,0.1)">
-    <span style="color:rgba(255,255,255,0.4);font-size:12px">Vista demo:</span>
-    <button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,0.2);font-size:12px"
-      onclick="showPage('landing')">🏠 Landing</button>
-    <button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,0.2);font-size:12px"
-      onclick="showPage('student-dash')">🎓 Estudiante</button>
-    <button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,0.2);font-size:12px"
-      onclick="showPage('company-dash')">🏢 Empresa</button>
-    <button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,0.2);font-size:12px"
-      onclick="showPage('admin-dash')">👑 Admin</button>
-  </div>
+
   <script src="script.js"></script>
 </body>
 

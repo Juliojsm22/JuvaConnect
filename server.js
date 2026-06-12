@@ -93,9 +93,11 @@ app.post('/api/login', async (req, res) => {
     
     const user = result.rows[0];
     
-    // Para facilidades de la demo local, aceptaremos el login exitoso.
-    // En producción se compararía con bcrypt.compare(password, user.password_hash)
-    console.log(`🔐 Intento de login para usuario: ${email}`);
+    if (user.password_hash !== password) {
+      return res.status(401).json({ error: 'Contraseña incorrecta.' });
+    }
+    
+    console.log(`🔐 Login exitoso para usuario: ${email}`);
     
     res.json({
       success: true,
@@ -107,6 +109,11 @@ app.post('/api/login', async (req, res) => {
         career: user.career,
         university: user.university,
         location: user.location,
+        phone: user.phone,
+        dob: user.dob,
+        age: user.age,
+        address: user.address,
+        cedula: user.cedula,
         profile_completion: user.profile_completion || 85
       }
     });
@@ -119,7 +126,7 @@ app.post('/api/login', async (req, res) => {
 // 3. Registrar nuevo usuario
 app.post('/api/register', async (req, res) => {
   try {
-    const { name, email, password, role, career, university } = req.body;
+    const { name, email, password, role, career, university, phone, dob, age, address, cedula } = req.body;
     
     // Verificar si el usuario ya existe
     const existsQuery = `SELECT id FROM users WHERE email = $1`;
@@ -130,17 +137,42 @@ app.post('/api/register', async (req, res) => {
     
     // Insertar usuario
     const insertUserQuery = `
-      INSERT INTO users (name, email, password_hash, role, career, university, location, profile_completion)
-      VALUES ($1, $2, $3, $4, $5, $6, 'Managua, NI', 85)
-      RETURNING id, name, email, role, career, university, location, profile_completion
+      INSERT INTO users (name, email, password_hash, role, career, university, phone, dob, age, address, cedula, location, profile_completion)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Managua, NI', 85)
+      RETURNING id, name, email, role, career, university, phone, dob, age, address, cedula, location, profile_completion
     `;
-    const result = await pool.query(insertUserQuery, [name, email, password, role, career, university]);
+    const result = await pool.query(insertUserQuery, [name, email, password, role, career, university, phone, dob, age, address, cedula]);
     const newUser = result.rows[0];
     
     console.log(`👤 Nuevo usuario registrado: ${email} (${role})`);
     res.json({ success: true, user: newUser });
   } catch (err) {
     console.error('Error al registrar usuario:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// 3.5. Actualizar perfil de usuario
+app.put('/api/users/:id/profile', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, career, university, phone, cedula, dob, age, address } = req.body;
+    
+    const updateQuery = `
+      UPDATE users
+      SET name = $1, career = $2, university = $3, phone = $4, cedula = $5, dob = $6, age = $7, address = $8
+      WHERE id = $9
+      RETURNING id, name, email, role, career, university, phone, dob, age, address, cedula, location, profile_completion
+    `;
+    const result = await pool.query(updateQuery, [name, career, university, phone, cedula, dob, age, address, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    
+    res.json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    console.error('Error al actualizar perfil:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

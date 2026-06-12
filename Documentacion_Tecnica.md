@@ -11,7 +11,7 @@ JuvaConnect es una plataforma web (Bolsa de Empleo Universitaria) diseñada bajo
 
 ## 3. Arquitectura
 La arquitectura sigue un patrón de API REST clásico:
-- **Frontend (Cliente)**: Es una Single Page Application (SPA) manejada completamente por `bolsa_empleo_universitaria.html`, `styles.css` y `script.js`. El estado (visibilidad de pantallas, modales, alertas) se maneja en el DOM de forma dinámica sin el uso de frameworks externos como React o Angular. Las peticiones al servidor se realizan mediante la Fetch API nativa.
+- **Frontend (Cliente)**: Es una Single Page Application (SPA) manejada completamente por `Juva Connect.html`, `styles.css` y `script.js`. El estado (visibilidad de pantallas, modales, alertas) se maneja en el DOM de forma dinámica sin el uso de frameworks externos como React o Angular. Las peticiones al servidor se realizan mediante la Fetch API nativa.
 - **Backend (Servidor)**: Aplicación construida en Node.js utilizando `Express.js`. Provee la lógica de negocio y comunicación con la base de datos a través de una API REST.
 - **Base de Datos**: Base de datos relacional PostgreSQL. Se comunica con el backend a través de la librería `pg` (Node-Postgres) utilizando un Pool de conexiones.
 
@@ -62,4 +62,4 @@ DATABASE_URL=postgres://usuario:password@localhost:5432/nombre_base_de_datos
 2. Ejecutar `npm install` para instalar dependencias (`express`, `pg`, `cors`, `dotenv`).
 3. Ejecutar el script `schema.sql` en el gestor PostgreSQL para construir la estructura y el *seed data*.
 4. Ejecutar `npm run dev` para iniciar el servidor con *Nodemon*.
-5. Abrir `bolsa_empleo_universitaria.html` en el navegador (o mediante una extensión como Live Server).
+5. Abrir `Juva Connect.html` en el navegador (o mediante una extensión como Live Server).

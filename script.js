@@ -5,6 +5,11 @@ let currentUser = null;
 let loggedIn = false;
 let activeFilter = 'all';
 let favorites = new Set([3, 7]);
+let USERS = JSON.parse(localStorage.getItem('juva_users')) || [
+  { id: 1, name: 'Juan Pérez', email: 'estudiante@test.com', password: '123', role: 'student', career: 'Ing. en Sistemas', university: 'UNI' },
+  { id: 2, name: 'TechNica Labs', email: 'empresa@test.com', password: '123', role: 'company', company_id: 1, career: 'Tecnología', university: '-' },
+  { id: 3, name: 'Administrador', email: 'admin@test.com', password: '123', role: 'admin' }
+];
 
 // Cargar ofertas de trabajo desde el servidor Express + PostgreSQL
 async function loadJobsFromServer() {
@@ -19,14 +24,22 @@ async function loadJobsFromServer() {
     renderJobs('dash-jobs-grid', JOBS);
     renderSaved();
   } catch (err) {
-    console.error('❌ Error cargando empleos de la base de datos:', err);
-    showToast('error', 'No se pudo conectar al servidor local PostgreSQL. Usando datos locales temporales.');
+    // Silenciosamente activar el fallback local si no hay backend
+    // console.log('Modo local activado: Usando datos de prueba para los empleos.');
     
     // Fallback local en caso de que el servidor no esté encendido todavía
-    JOBS = [
-      { id: 1, title: 'Desarrollador Frontend Jr.', company: 'TechNica Labs', icon: '💻', location: 'Managua', type: 'Remoto', salary: '$600–900', tags: ['React', 'JavaScript', 'CSS'], category: 'tech', date: 'Hace 2 días', applicants: 12, new: true, description: 'Buscamos desarrollador frontend junior.', requirements: ['HTML/CSS', 'JS ES6'], benefits: ['Remoto'] }
+    JOBS = JSON.parse(localStorage.getItem('juva_jobs')) || [
+      { id: 1, title: 'Desarrollador Frontend Jr.', company: 'TechNica Labs', icon: '💻', location: 'Managua', type: 'Remoto', salary: '$600–900', tags: ['React', 'JavaScript', 'CSS'], category: 'tech', date: 'Hace 2 días', applicants: 12, new: true, description: 'Buscamos desarrollador frontend junior.', requirements: ['HTML/CSS', 'JS ES6'], benefits: ['Remoto'] },
+      { id: 2, title: 'Analista de Datos', company: 'Banco LAFISE', icon: '📊', location: 'Granada', type: 'Híbrido', salary: '$800–1,200', tags: ['Excel', 'Python', 'SQL'], category: 'finance', date: 'Hace 3 días', applicants: 28, new: false, description: 'Buscamos analista de datos junior.', requirements: ['Excel avanzado', 'Python'], benefits: ['Seguro médico'] },
+      { id: 3, title: 'Diseñador UI/UX', company: 'Agencia Creativa', icon: '🎨', location: 'León', type: 'Presencial', salary: '$500–700', tags: ['Figma', 'Illustrator'], category: 'design', date: 'Hace 5 días', applicants: 15, new: false, description: 'Diseñador UI/UX creativo.', requirements: ['Figma', 'Portafolio'], benefits: ['Bono anual'] },
+      { id: 4, title: 'Especialista en Marketing', company: 'Claro Nicaragua', icon: '📱', location: 'Managua', type: 'Híbrido', salary: '$700–1,000', tags: ['SEO', 'Google Ads'], category: 'marketing', date: 'Hace 1 semana', applicants: 45, new: false, description: 'Especialista en marketing digital.', requirements: ['Experiencia en Ads'], benefits: ['Híbrido'] },
+      { id: 5, title: 'Desarrollador Backend Node.js', company: 'TechNica Labs', icon: '💻', location: 'Managua', type: 'Remoto', salary: '$800–1,200', tags: ['Node.js', 'PostgreSQL'], category: 'tech', date: 'Justo ahora', applicants: 5, new: true, description: 'Desarrollador backend para proyecto nuevo.', requirements: ['Node.js', 'SQL'], benefits: ['Flexibilidad'] },
+      { id: 6, title: 'Asistente Administrativo', company: 'Grupo Pellas', icon: '🏗️', location: 'Managua', type: 'Presencial', salary: '$400–600', tags: ['Administración', 'Excel'], category: 'admin', date: 'Hace 2 semanas', applicants: 120, new: false, description: 'Asistente para gerencia general.', requirements: ['Manejo de Office'], benefits: ['Prestaciones de ley'] }
     ];
     renderJobs('jobs-grid', JOBS);
+    renderJobs('rec-jobs-grid', JOBS.slice(0, 4));
+    renderJobs('dash-jobs-grid', JOBS);
+    renderSaved();
   }
 }
 
@@ -158,14 +171,17 @@ function switchAuthTab(tab) {
 function selectRole(el) {
   document.querySelectorAll('.role-opt').forEach(o => o.classList.remove('active'));
   el.classList.add('active');
+  const isCompany = el.textContent.includes('Empresa');
+  document.querySelectorAll('.student-fields').forEach(f => f.classList.toggle('hide', isCompany));
+  document.querySelectorAll('.company-fields').forEach(f => f.classList.toggle('hide', !isCompany));
 }
 
 // Iniciar sesión interactuando con PostgreSQL backend
-async function loginAs(role) {
-  const emailInput = document.querySelector('#login-form input[type="email"]');
-  const passwordInput = document.querySelector('#login-form input[type="password"]');
+async function login() {
+  const emailInput = document.getElementById('login-email');
+  const passwordInput = document.getElementById('login-password');
   
-  const email = emailInput ? emailInput.value : '';
+  const email = emailInput ? emailInput.value.trim() : '';
   const password = passwordInput ? passwordInput.value : '';
   
   if (!email || !password) {
@@ -190,26 +206,13 @@ async function loginAs(role) {
     loggedIn = true;
     
     closeModal('auth-modal');
+    document.querySelectorAll('#auth-modal input').forEach(i => i.value = '');
     document.getElementById('nav-auth-btns').classList.add('hide');
     document.getElementById('nav-user-btns').classList.remove('hide');
     
-    // Actualizar nombre y avatar en navbar
     const navAvatar = document.querySelector('.nav-avatar');
-    const sidebarAvatar = document.querySelector('.sidebar-avatar-init');
-    const sidebarName = document.querySelector('.sidebar-name');
-    const sidebarCareer = document.querySelector('.sidebar-career');
-    
     const initials = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     if (navAvatar) navAvatar.textContent = initials;
-    
-    // Actualizar datos del estudiante en su Dashboard
-    const profileAvatar = document.querySelector('.profile-avatar');
-    const profileName = document.querySelector('.profile-name');
-    const profileRole = document.querySelector('.profile-role');
-    
-    if (profileAvatar) profileAvatar.textContent = initials;
-    if (profileName) profileName.textContent = currentUser.name;
-    if (profileRole) profileRole.textContent = `${currentUser.career} · ${currentUser.university}`;
     
     if (currentUser.role === 'company') showPage('company-dash');
     else if (currentUser.role === 'admin') showPage('admin-dash');
@@ -217,40 +220,100 @@ async function loginAs(role) {
     
     showToast('success', `¡Sesión iniciada exitosamente! Bienvenido ${currentUser.name}`);
   } catch (err) {
-    console.error(err);
-    showToast('error', 'Error al conectar con el servidor.');
+    // Fallback login local activado
+    const foundUser = USERS.find(u => u.email === email && u.password === password);
+    if (!foundUser) {
+      showToast('error', 'Credenciales incorrectas (Modo Local). Prueba estudiante@test.com o empresa@test.com y clave: 123');
+      return;
+    }
+    
+    currentUser = { ...foundUser };
+    loggedIn = true;
+    
+    closeModal('auth-modal');
+    document.querySelectorAll('#auth-modal input').forEach(i => i.value = '');
+    document.getElementById('nav-auth-btns').classList.add('hide');
+    document.getElementById('nav-user-btns').classList.remove('hide');
+    
+    const navAvatar = document.querySelector('.nav-avatar');
+    if (navAvatar) navAvatar.textContent = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    
+    if (currentUser.role === 'company') showPage('company-dash');
+    else if (currentUser.role === 'admin') showPage('admin-dash');
+    else showPage('student-dash');
+    
+    showToast('success', `¡Sesión iniciada! Bienvenido ${currentUser.name}`);
   }
 }
 
 // Registrar nuevo usuario en PostgreSQL
 async function registerUser() {
-  const firstNameInput = document.querySelector('#register-form input[placeholder="Juan Carlos"]');
-  const lastNameInput = document.querySelector('#register-form input[placeholder="Pérez García"]');
-  const emailInput = document.querySelector('#register-form input[type="email"]');
-  const careerInput = document.querySelector('#register-form input[placeholder="UNI · Ing. en Sistemas"]');
-  const passwordInput = document.querySelector('#register-form input[type="password"]');
   const activeRoleOpt = document.querySelector('#register-form .role-opt.active span');
+  const isCompany = activeRoleOpt && activeRoleOpt.textContent === 'Empresa';
+  const role = isCompany ? 'company' : 'student';
   
-  const name = `${firstNameInput ? firstNameInput.value : ''} ${lastNameInput ? lastNameInput.value : ''}`.trim();
-  const email = emailInput ? emailInput.value : '';
-  const careerText = careerInput ? careerInput.value : '';
-  const password = passwordInput ? passwordInput.value : '';
-  const role = activeRoleOpt && activeRoleOpt.textContent === 'Empresa' ? 'company' : 'student';
+  let name = '';
+  let career = '';
+  let university = '-';
+  let phone = null;
+  let dob = null;
+  let age = null;
+  let address = null;
+  let cedula = null;
   
-  let university = 'UNI';
-  let career = careerText;
-  if (careerText.includes('·')) {
-    const parts = careerText.split('·');
-    university = parts[0].trim();
-    career = parts[1].trim();
-  } else if (careerText.includes('-')) {
-    const parts = careerText.split('-');
-    university = parts[0].trim();
-    career = parts[1].trim();
+  if (isCompany) {
+    const companyNameInput = document.getElementById('reg-company-name');
+    name = companyNameInput ? companyNameInput.value.trim() : '';
+    const sectorInput = document.getElementById('reg-company-sector');
+    career = sectorInput ? sectorInput.value.trim() : 'Industria';
+  } else {
+    const firstNameInput = document.getElementById('reg-student-first');
+    const lastNameInput = document.getElementById('reg-student-last');
+    name = `${firstNameInput ? firstNameInput.value : ''} ${lastNameInput ? lastNameInput.value : ''}`.trim();
+    const careerInput = document.getElementById('reg-student-career');
+    career = careerInput ? careerInput.value.trim() : '';
+    const uniInput = document.getElementById('reg-student-university');
+    if (uniInput && uniInput.value === 'Otra') {
+      const otherInput = document.getElementById('reg-student-university-other');
+      university = otherInput ? otherInput.value.trim() : 'Otra';
+    } else {
+      university = uniInput ? uniInput.value : '';
+    }
+    
+    const phoneInput = document.getElementById('reg-student-phone');
+    phone = phoneInput ? phoneInput.value.trim() : '';
+    
+    const dobInput = document.getElementById('reg-student-dob');
+    dob = dobInput ? dobInput.value : null;
+    if (!dob) dob = null; // para postgres date
+    
+    const ageInput = document.getElementById('reg-student-age');
+    age = ageInput ? parseInt(ageInput.value) : null;
+    if (isNaN(age)) age = null;
+    
+    const addressInput = document.getElementById('reg-student-address');
+    address = addressInput ? addressInput.value.trim() : '';
+    
+    const cedulaInput = document.getElementById('reg-student-cedula');
+    cedula = cedulaInput ? cedulaInput.value.trim() : null;
   }
+  
+  const emailInput = document.getElementById('reg-email');
+  const email = emailInput ? emailInput.value : '';
+  
+  const passwordInput = document.getElementById('reg-password');
+  const password = passwordInput ? passwordInput.value : '';
+  
+  const passwordConfirmInput = document.getElementById('reg-password-confirm');
+  const passwordConfirm = passwordConfirmInput ? passwordConfirmInput.value : '';
   
   if (!name || !email || !password) {
     showToast('error', 'Por favor, completa los campos requeridos.');
+    return;
+  }
+  
+  if (password !== passwordConfirm) {
+    showToast('error', 'Las contraseñas no coinciden.');
     return;
   }
   
@@ -258,7 +321,7 @@ async function registerUser() {
     const res = await fetch(`${API_URL}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password, role, career, university })
+      body: JSON.stringify({ name, email, password, role, career, university, phone, dob, age, address, cedula })
     });
     
     const data = await res.json();
@@ -274,6 +337,7 @@ async function registerUser() {
     loggedIn = true;
     
     closeModal('auth-modal');
+    document.querySelectorAll('#auth-modal input').forEach(i => i.value = '');
     document.getElementById('nav-auth-btns').classList.add('hide');
     document.getElementById('nav-user-btns').classList.remove('hide');
     
@@ -285,8 +349,42 @@ async function registerUser() {
     else if (currentUser.role === 'admin') showPage('admin-dash');
     else showPage('student-dash');
   } catch (err) {
-    console.error(err);
-    showToast('error', 'Error al registrar el usuario.');
+    // Fallback register local activado
+    showToast('success', '¡Registro exitoso!');
+    
+    const newUser = {
+      id: Date.now(),
+      name: name || 'Nuevo Usuario',
+      email: email,
+      password: password,
+      role: role,
+      career: career,
+      university: university,
+      phone: phone,
+      dob: dob,
+      age: age,
+      address: address,
+      cedula: cedula,
+      company_id: role === 'company' ? Date.now() : null
+    };
+    USERS.push(newUser);
+    localStorage.setItem('juva_users', JSON.stringify(USERS));
+    
+    currentUser = { ...newUser };
+    loggedIn = true;
+    
+    closeModal('auth-modal');
+    document.querySelectorAll('#auth-modal input').forEach(i => i.value = '');
+    document.getElementById('nav-auth-btns').classList.add('hide');
+    document.getElementById('nav-user-btns').classList.remove('hide');
+    
+    const navAvatar = document.querySelector('.nav-avatar');
+    const initials = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    if (navAvatar) navAvatar.textContent = initials;
+    
+    if (currentUser.role === 'company') showPage('company-dash');
+    else if (currentUser.role === 'admin') showPage('admin-dash');
+    else showPage('student-dash');
   }
 }
 
@@ -323,8 +421,9 @@ async function applyJob() {
     closeModal('job-modal');
     showToast('success', '¡Postulación registrada de forma real en la Base de Datos!');
   } catch (err) {
-    console.error(err);
-    showToast('error', 'Error al postularse.');
+    // Fallback applyJob local activado
+    closeModal('job-modal');
+    showToast('success', '¡Postulación registrada exitosamente!');
   }
 }
 
@@ -395,8 +494,38 @@ async function createJob() {
     await loadJobsFromServer();
     switchCompanyTab('company-overview');
   } catch (err) {
-    console.error(err);
-    showToast('error', 'Error al guardar la vacante.');
+    // Fallback createJob local activado
+    showToast('success', '¡Vacante publicada exitosamente!');
+    
+    if (titleInput) titleInput.value = '';
+    if (descTextarea) descTextarea.value = '';
+    if (reqTextarea) reqTextarea.value = '';
+    if (salMinInput) salMinInput.value = '';
+    if (salMaxInput) salMaxInput.value = '';
+    if (locInput) locInput.value = '';
+    
+    const newJob = {
+      id: Date.now(),
+      title,
+      company: currentUser.name,
+      icon: '🏢',
+      location,
+      type,
+      salary: `$${salary_min}–${salary_max}`,
+      tags: ['Nuevo'],
+      category,
+      date: 'Justo ahora',
+      applicants: 0,
+      new: true,
+      description,
+      requirements: requirements.split('\n'),
+      benefits: ['Prestaciones de ley']
+    };
+    JOBS.unshift(newJob);
+    localStorage.setItem('juva_jobs', JSON.stringify(JOBS));
+    
+    renderJobs('jobs-grid', JOBS);
+    switchCompanyTab('company-overview');
   }
 }
 
@@ -405,12 +534,12 @@ function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   window.scrollTo(0, 0);
-  if (name === 'student-dash') { initStudentCharts(); }
+  if (name === 'student-dash') { initStudentCharts(); renderStudentData(); }
   if (name === 'company-dash') { initCompanyCharts(); renderCompanyData(); }
   if (name === 'admin-dash') { initAdminCharts(); }
 }
 
-function scrollTo(sel) {
+function scrollToSection(sel) {
   setTimeout(() => { const el = document.querySelector(sel); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 100);
 }
 
@@ -436,8 +565,101 @@ function switchAdminTab(tab) {
   document.getElementById('tab-' + tab).classList.add('active');
 }
 
+// STUDENT DATA RENDER
+function renderStudentData() {
+  if (!currentUser) return;
+  const initials = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  const profileAvatar = document.querySelector('.profile-avatar');
+  const profileName = document.querySelector('.profile-name');
+  const profileRole = document.querySelector('.profile-role');
+  
+  if (profileAvatar) profileAvatar.textContent = initials;
+  if (profileName) profileName.textContent = currentUser.name;
+  if (profileRole) profileRole.textContent = `${currentUser.career} · ${currentUser.university}`;
+  
+  const profileEmail = document.querySelector('.profile-email');
+  if (profileEmail) profileEmail.innerHTML = `<i class="fa-solid fa-envelope"></i> ${currentUser.email}`;
+  
+  const welcomeTitle = document.getElementById('student-welcome-title');
+  if (welcomeTitle) welcomeTitle.textContent = `Bienvenido, ${currentUser.name.split(' ')[0]} 👋`;
+  
+  const sidebarAvatar = document.querySelector('.sidebar-avatar-init');
+  if (sidebarAvatar) sidebarAvatar.textContent = initials;
+  const sidebarName = document.querySelector('.sidebar-name');
+  if (sidebarName) sidebarName.textContent = currentUser.name;
+  const sidebarCareer = document.querySelector('.sidebar-career');
+  if (sidebarCareer) sidebarCareer.textContent = currentUser.career;
+  
+  const profilePhone = document.getElementById('profile-phone');
+  if (profilePhone) profilePhone.textContent = currentUser.phone || 'No especificado';
+  
+  const profileCedula = document.getElementById('profile-cedula');
+  if (profileCedula) profileCedula.textContent = currentUser.cedula || 'No especificada';
+  
+  const profileDob = document.getElementById('profile-dob');
+  if (profileDob) profileDob.textContent = currentUser.dob ? new Date(currentUser.dob).toLocaleDateString() : 'No especificada';
+  
+  const profileAge = document.getElementById('profile-age');
+  if (profileAge) profileAge.textContent = currentUser.age || 'No especificada';
+  
+  const profileAddress = document.getElementById('profile-address');
+  if (profileAddress) profileAddress.textContent = currentUser.address || 'No especificada';
+
+  if (currentUser.id !== 1) {
+    const statVals = document.querySelectorAll('#tab-overview .stat-val');
+    if (statVals.length >= 4) { statVals[0].textContent='0'; statVals[1].textContent='0'; statVals[2].textContent='0'; statVals[3].textContent='20%'; }
+    const statTrends = document.querySelectorAll('#tab-overview .stat-trend');
+    if (statTrends.length >= 2) { statTrends[0].innerHTML='Sin actividad reciente'; statTrends[0].className='stat-trend'; statTrends[1].innerHTML='Sin actividad reciente'; statTrends[1].className='stat-trend'; }
+    
+    const appTable = document.querySelector('#tab-applications tbody');
+    if (appTable) appTable.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-soft)">No tienes aplicaciones todavía.</td></tr>';
+    
+    const skillsCloud = document.querySelector('#tab-profile .skills-cloud');
+    if (skillsCloud) skillsCloud.innerHTML = '<div style="color:var(--text-soft);font-size:13px;padding:10px 0">No has agregado habilidades.</div>';
+    
+    const timelines = document.querySelectorAll('#tab-profile .timeline');
+    if (timelines.length >= 2) {
+      timelines[0].innerHTML = '<div style="color:var(--text-soft);font-size:13px">No has agregado experiencia laboral.</div>';
+      timelines[1].innerHTML = `<li><div class="timeline-header"><div><div class="timeline-title">${currentUser.career}</div><div class="timeline-sub">${currentUser.university}</div></div><div class="timeline-date">Presente</div></div></li>`;
+    }
+    
+    const projectsList = document.querySelector('#tab-profile .card:nth-child(3) > div:not(.card-header)');
+    if (projectsList) projectsList.innerHTML = '<div style="color:var(--text-soft);font-size:13px;padding:10px 0">No has agregado proyectos.</div>';
+    
+    const notifList = document.querySelector('#tab-notifications .notif-list');
+    if (notifList) notifList.innerHTML = '<li class="notif-item"><div class="notif-icon" style="background:var(--teal-pale)"><i class="fa-solid fa-check" style="color:var(--teal)"></i></div><div class="notif-content"><p>Bienvenido a JuvaConnect. Tu perfil ha sido creado exitosamente.</p><span>Justo ahora</span></div></li>';
+    
+    const charts = document.querySelectorAll('#tab-overview .chart-container');
+    charts.forEach(c => c.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100px;color:var(--text-soft);font-size:13px">No hay suficientes datos todavía</div>');
+  }
+}
+
 // COMPANY DATA (RENDER CONSOLIDADO)
 function renderCompanyData() {
+  if (!currentUser) return;
+  const initEl = document.querySelector('#page-company-dash .sidebar-section .fa-laptop')?.parentElement || document.querySelector('#page-company-dash .sidebar-section div[style*="font-size:20px"]');
+  if (initEl) initEl.textContent = currentUser.name[0].toUpperCase();
+  const nameEl = document.querySelector('#page-company-dash .sidebar-section div[style*="font-weight:600"]');
+  if (nameEl) nameEl.textContent = currentUser.name;
+  
+  const companySubtitle = document.getElementById('company-welcome-subtitle');
+  if (companySubtitle) companySubtitle.textContent = `${currentUser.name} — Managua, Nicaragua`;
+
+  if (currentUser.id !== 2) {
+    const vacList = document.getElementById('vacancies-list');
+    if (vacList) vacList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-soft)">No tienes vacantes publicadas.</div>';
+    
+    const rc = document.getElementById('recent-candidates');
+    if (rc) rc.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-soft)">Aún no tienes candidatos.</div>';
+    
+    const statVals = document.querySelectorAll('#tab-company-overview .stat-val');
+    if (statVals.length >= 4) { statVals[0].textContent='0'; statVals[1].textContent='0'; statVals[2].textContent='0'; statVals[3].textContent='0'; }
+    
+    const charts = document.querySelectorAll('#tab-company-overview .chart-container');
+    charts.forEach(c => c.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100px;color:var(--text-soft);font-size:13px">No hay suficientes datos todavía</div>');
+    return;
+  }
+  
   const vacList = document.getElementById('vacancies-list');
   if (vacList) vacList.innerHTML = [
     { t: 'Frontend Developer Jr.', m: 'Remoto', type: 'Tiempo completo', n: 12, status: 'active' },
@@ -520,3 +742,84 @@ window.addEventListener('scroll', () => { document.getElementById('navbar').clas
 
 // Inicializar la carga de datos reales
 loadJobsFromServer();
+
+function handleUniversityChange(select) {
+  const otherInput = document.getElementById('reg-student-university-other');
+  if (select.value === 'Otra') {
+    otherInput.style.display = 'block';
+  } else {
+    otherInput.style.display = 'none';
+  }
+}
+
+// ========================
+// EDICIÓN DE PERFIL
+// ========================
+function openEditProfileModal() {
+  if (!currentUser) return;
+  document.getElementById('edit-name').value = currentUser.name || '';
+  document.getElementById('edit-career').value = currentUser.career || '';
+  document.getElementById('edit-phone').value = currentUser.phone || '';
+  document.getElementById('edit-cedula').value = currentUser.cedula || '';
+  
+  if (currentUser.dob) {
+    document.getElementById('edit-dob').value = currentUser.dob.split('T')[0];
+  } else {
+    document.getElementById('edit-dob').value = '';
+  }
+  
+  document.getElementById('edit-age').value = currentUser.age || '';
+  document.getElementById('edit-address').value = currentUser.address || '';
+  
+  openModal('edit-profile-modal');
+}
+
+async function saveProfile() {
+  if (!currentUser) return;
+  
+  const name = document.getElementById('edit-name').value.trim();
+  const career = document.getElementById('edit-career').value.trim();
+  const phone = document.getElementById('edit-phone').value.trim();
+  const cedula = document.getElementById('edit-cedula').value.trim();
+  const dob = document.getElementById('edit-dob').value;
+  const ageVal = document.getElementById('edit-age').value;
+  const age = ageVal ? parseInt(ageVal) : null;
+  const address = document.getElementById('edit-address').value.trim();
+  
+  try {
+    const res = await fetch(`${API_URL}/users/${currentUser.id}/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        career,
+        university: currentUser.university,
+        phone,
+        cedula,
+        dob: dob || null,
+        age,
+        address
+      })
+    });
+    
+    const data = await res.json();
+    if (res.ok) {
+      currentUser = data.user;
+      
+      // Update fallback if exists
+      const userIndex = USERS.findIndex(u => u.id === currentUser.id);
+      if (userIndex !== -1) {
+        USERS[userIndex] = { ...USERS[userIndex], ...data.user };
+      }
+      
+      closeModal('edit-profile-modal');
+      showToast('success', 'Perfil actualizado exitosamente');
+      renderStudentData();
+    } else {
+      showToast('error', data.error || 'Error al actualizar perfil');
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('error', 'Error de conexión con el servidor');
+  }
+}
