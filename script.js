@@ -1,8 +1,8 @@
 const API_URL = 'http://localhost:3000/api';
 
 let JOBS = [];
-let currentUser = null;
-let loggedIn = false;
+let currentUser = JSON.parse(sessionStorage.getItem('juva_currentUser')) || null;
+let loggedIn = !!currentUser;
 let activeFilter = 'all';
 let favorites = new Set([3, 7]);
 let USERS = JSON.parse(localStorage.getItem('juva_users')) || [
@@ -17,12 +17,14 @@ async function loadJobsFromServer() {
     const res = await fetch(`${API_URL}/jobs`);
     if (!res.ok) throw new Error('Error al conectar con la API');
     JOBS = await res.json();
-    
-    // Renderizar en los diferentes contenedores
     renderJobs('jobs-grid', JOBS);
     renderJobs('rec-jobs-grid', JOBS.slice(0, 4));
-    renderJobs('dash-jobs-grid', JOBS);
+    filterDashJobs();
     renderSaved();
+    
+    if (loggedIn && currentUser && currentUser.role === 'company') {
+      renderCompanyData();
+    }
   } catch (err) {
     // Silenciosamente activar el fallback local si no hay backend
     // console.log('Modo local activado: Usando datos de prueba para los empleos.');
@@ -38,7 +40,7 @@ async function loadJobsFromServer() {
     ];
     renderJobs('jobs-grid', JOBS);
     renderJobs('rec-jobs-grid', JOBS.slice(0, 4));
-    renderJobs('dash-jobs-grid', JOBS);
+    filterDashJobs();
     renderSaved();
   }
 }
@@ -46,7 +48,24 @@ async function loadJobsFromServer() {
 function createJobCard(job, inDash = false) {
   const typeClass = job.type === 'Remoto' ? 'tag-teal' : job.type === 'Híbrido' ? 'tag-blue' : 'tag-gray';
   const favClass = favorites.has(job.id) ? 'active' : '';
-  const isNew = job.new ? '<div class="new-badge">NUEVO</div>' : '';
+  
+  let badgeHtml = '';
+  if (job.matchScore && job.matchScore > 0) {
+    badgeHtml = '<div class="new-badge" style="background:var(--teal); color:white; border: 1px solid var(--teal-pale);">RECOMENDADO</div>';
+  } else if (job.new) {
+    badgeHtml = '<div class="new-badge">NUEVO</div>';
+  }
+  const isNew = badgeHtml;
+  
+  const userId = currentUser ? currentUser.id : 'guest';
+  const apps = JSON.parse(localStorage.getItem('juva_apps_' + userId)) || [];
+  const alreadyApplied = apps.some(app => app.id === job.id);
+  
+  const btnStyle = alreadyApplied ? 'width:100%; margin-top:14px; opacity:0.7; cursor:not-allowed;' : 'width:100%; margin-top:14px;';
+  const btnHtml = loggedIn 
+    ? (alreadyApplied ? '<i class="fa-solid fa-check"></i> Ya aplicaste' : '<i class="fa-solid fa-paper-plane"></i> Aplicar') 
+    : 'Ver detalles';
+
   return `<div class="job-card" data-id="${job.id}" data-cat="${job.category}" data-type="${job.type.toLowerCase()}" onclick="viewJobDetails(${job.id})">
     ${isNew}
     <div class="jc-header">
@@ -66,7 +85,7 @@ function createJobCard(job, inDash = false) {
         <div class="jc-applicants"><i class="fa-solid fa-users"></i> ${job.applicants}</div>
       </div>
     </div>
-    <button class="btn btn-primary btn-sm" style="width:100%;margin-top:14px">${loggedIn ? '<i class="fa-solid fa-paper-plane"></i> Aplicar' : 'Ver detalles'}</button>
+    <button class="btn btn-primary btn-sm" style="${btnStyle}" ${alreadyApplied ? 'disabled' : ''} onclick="${alreadyApplied ? 'event.stopPropagation();' : ''}">${btnHtml}</button>
   </div>`;
 }
 
@@ -82,7 +101,9 @@ function viewJobDetails(id) {
   // Rellenar modal con datos reales
   document.querySelector('#job-modal h2').textContent = job.title;
   document.querySelector('#job-modal .modal-company-logo').textContent = job.icon;
-  document.querySelector('#job-modal .modal-company-info p').textContent = `${job.company} · ${job.location}`;
+  document.querySelector('#job-modal .modal-company-info p').textContent = `${job.company} — ${job.location}`;
+  const btn = document.getElementById('job-modal-company-btn');
+  if (btn) btn.setAttribute('onclick', `viewCompanyProfile(${job.company_id})`);
   
   // Actualizar tags
   const modalTags = document.querySelector('#job-modal .modal-tags');
@@ -118,6 +139,38 @@ function viewJobDetails(id) {
     skillsGrid.innerHTML = job.tags.map(t => `<span class="skill-tag">${t}</span>`).join('');
   }
   
+  // Actualizar el estado del botón Guardar en el modal
+  const saveBtn = document.querySelector('#job-modal .modal-footer .btn-ghost');
+  if (saveBtn) {
+    if (favorites.has(job.id)) {
+      saveBtn.innerHTML = '<i class="fa-solid fa-heart" style="color:var(--coral)"></i> Guardado';
+    } else {
+      saveBtn.innerHTML = '<i class="fa-regular fa-heart"></i> Guardar';
+    }
+  }
+  
+  // Verificar si ya aplicó
+  const userId = currentUser ? currentUser.id : 'guest';
+  const apps = JSON.parse(localStorage.getItem('juva_apps_' + userId)) || [];
+  const alreadyApplied = apps.some(app => app.id === id);
+
+  const applyBtn = document.querySelector('#job-modal .btn-primary');
+  if (applyBtn) {
+    if (alreadyApplied) {
+      applyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Ya aplicaste';
+      applyBtn.disabled = true;
+      applyBtn.style.opacity = '0.7';
+      applyBtn.style.cursor = 'not-allowed';
+      applyBtn.onclick = null;
+    } else {
+      applyBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Aplicar';
+      applyBtn.disabled = false;
+      applyBtn.style.opacity = '1';
+      applyBtn.style.cursor = 'pointer';
+      applyBtn.onclick = openApplyModal;
+    }
+  }
+  
   openModal('job-modal');
 }
 
@@ -131,6 +184,135 @@ function filterJobs() {
   renderJobs('jobs-grid', filtered);
 }
 
+function filterDashJobs() {
+  const q = document.getElementById('dash-search-input')?.value?.toLowerCase() || '';
+  const typeFilter = document.getElementById('dash-filter-type')?.value || 'all';
+  const catFilter = document.getElementById('dash-filter-cat')?.value || 'all';
+  
+  let filtered = JOBS.filter(j => {
+    const matchType = typeFilter === 'all' || j.type === typeFilter;
+    const matchCat = catFilter === 'all' || j.category === catFilter;
+    const matchQ = !q || j.title.toLowerCase().includes(q) || j.company.toLowerCase().includes(q) || j.tags.some(t => t.toLowerCase().includes(q));
+    return matchType && matchCat && matchQ;
+  });
+  
+  // Calcular puntaje de recomendación para ordenar
+  if (currentUser) {
+    const userCareer = (currentUser.career || '').toLowerCase();
+    filtered.forEach(j => {
+      j.matchScore = 0;
+      if (userCareer) {
+        if (j.category && userCareer.includes(j.category.substring(0,3))) j.matchScore += 2;
+        if (j.title.toLowerCase().includes(userCareer)) j.matchScore += 2;
+        if (j.tags.some(t => userCareer.includes(t.toLowerCase()))) j.matchScore += 1;
+      }
+    });
+    filtered.sort((a, b) => b.matchScore - a.matchScore);
+  }
+  
+  renderJobs('dash-jobs-grid', filtered);
+}
+
+function selectFilter(filter) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.filter-btn[onclick="selectFilter('${filter}')"]`).classList.add('active');
+  activeFilter = filter;
+  filterDashJobs();
+}
+
+async function viewCompanyProfile(company_id) {
+  if (!company_id) {
+    showToast('error', 'Información de empresa no disponible.');
+    return;
+  }
+  showToast('info', 'Cargando perfil de la empresa...');
+  try {
+    const res = await fetch(`${API_URL}/companies/${company_id}`);
+    if (!res.ok) throw new Error('Empresa no encontrada');
+    const company = await res.json();
+    
+    document.getElementById('pc-name').textContent = company.name;
+    document.getElementById('pc-location-sector').innerHTML = `<i class="fa-solid fa-location-dot"></i> ${company.location || 'Nicaragua'} &bull; ${company.sector || 'Tecnología'}`;
+    document.getElementById('pc-desc').textContent = company.description || 'Descripción no disponible.';
+    document.getElementById('pc-size').textContent = company.company_size || 'No especificado';
+    document.getElementById('pc-founded').textContent = company.founded_year || 'No especificado';
+    
+    const logoEl = document.getElementById('pc-logo');
+    if (company.logo_url) {
+      logoEl.textContent = '';
+      logoEl.style.backgroundImage = `url(${company.logo_url})`;
+    } else {
+      logoEl.style.backgroundImage = 'none';
+      logoEl.textContent = company.logo_emoji || company.name[0].toUpperCase();
+    }
+    
+    const bannerEl = document.getElementById('pc-banner');
+    if (company.banner_url) {
+      bannerEl.style.backgroundImage = `url(${company.banner_url})`;
+    } else {
+      bannerEl.style.backgroundImage = `linear-gradient(135deg, var(--blue) 0%, #1e3a8a 100%)`;
+    }
+    
+    const websiteEl = document.getElementById('pc-website');
+    if (company.website) {
+      websiteEl.innerHTML = `<a href="${company.website.startsWith('http') ? company.website : 'http://'+company.website}" target="_blank" style="color:inherit;text-decoration:none;">Visitar web <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px;"></i></a>`;
+    } else {
+      websiteEl.textContent = 'No disponible';
+    }
+    
+    const socialLinks = document.getElementById('pc-social-links');
+    socialLinks.innerHTML = '';
+    if (company.facebook_url) socialLinks.innerHTML += `<a href="${company.facebook_url}" target="_blank" style="width:36px;height:36px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#3b5998;text-decoration:none;"><i class="fa-brands fa-facebook-f"></i></a>`;
+    if (company.twitter_url) socialLinks.innerHTML += `<a href="${company.twitter_url}" target="_blank" style="width:36px;height:36px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#1da1f2;text-decoration:none;"><i class="fa-brands fa-twitter"></i></a>`;
+    if (company.instagram_url) socialLinks.innerHTML += `<a href="${company.instagram_url}" target="_blank" style="width:36px;height:36px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#e1306c;text-decoration:none;"><i class="fa-brands fa-instagram"></i></a>`;
+    
+    const benefitsContainer = document.getElementById('pc-benefits-container');
+    const benefitsList = document.getElementById('pc-benefits');
+    if (company.benefits) {
+      const benefitsArr = company.benefits.split(',').map(b => b.trim()).filter(b => b);
+      if (benefitsArr.length > 0) {
+        benefitsList.innerHTML = benefitsArr.map(b => `<span class="tag tag-teal" style="font-size:14px; padding:6px 14px;"><i class="fa-solid fa-check"></i> ${b}</span>`).join('');
+        benefitsContainer.style.display = 'block';
+      } else {
+        benefitsContainer.style.display = 'none';
+      }
+    } else {
+      benefitsContainer.style.display = 'none';
+    }
+    
+    const galleryContainer = document.getElementById('pc-gallery-container');
+    const galleryGrid = document.getElementById('pc-gallery');
+    galleryGrid.innerHTML = '';
+    if (company.gallery_urls) {
+      try {
+        const urls = JSON.parse(company.gallery_urls);
+        if (urls && urls.length > 0) {
+          galleryGrid.innerHTML = urls.map(url => `<div style="width:100%; height:120px; border-radius:8px; background-image:url(${url}); background-size:cover; background-position:center; border:1px solid var(--border);"></div>`).join('');
+          galleryContainer.style.display = 'block';
+        } else {
+          galleryContainer.style.display = 'none';
+        }
+      } catch(e) { galleryContainer.style.display = 'none'; }
+    } else {
+      galleryContainer.style.display = 'none';
+    }
+    
+    const videoContainer = document.getElementById('pc-video-container');
+    const videoBtn = document.getElementById('pc-video');
+    if (company.video_url) {
+      videoBtn.href = company.video_url;
+      videoContainer.style.display = 'block';
+    } else {
+      videoContainer.style.display = 'none';
+    }
+    
+    openModal('public-company-modal');
+  } catch (err) {
+    console.error('Error al cargar perfil de empresa:', err);
+    showToast('error', 'Error al cargar los datos de la empresa.');
+  }
+}
+
 function setFilter(el, cat) {
   document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
@@ -139,13 +321,32 @@ function setFilter(el, cat) {
 }
 
 function toggleFav(e, id) {
-  e.stopPropagation();
+  if(e) e.stopPropagation();
   if (favorites.has(id)) favorites.delete(id); else favorites.add(id);
   filterJobs();
   renderJobs('dash-jobs-grid', JOBS);
   renderJobs('rec-jobs-grid', JOBS.slice(0, 4));
   renderSaved();
+  updateSidebarBadges();
+  
+  const statVals = document.querySelectorAll('#tab-overview .stat-val');
+  if (statVals.length >= 3) statVals[2].textContent = favorites.size;
+
   showToast('success', favorites.has(id) ? 'Empleo guardado en favoritos' : 'Eliminado de favoritos');
+}
+
+function toggleFavFromModal(e) {
+  const modalTitle = document.querySelector('#job-modal h2').textContent;
+  const selectedJob = JOBS.find(j => j.title === modalTitle);
+  if (selectedJob) {
+    toggleFav(null, selectedJob.id);
+    const btn = e.currentTarget;
+    if (favorites.has(selectedJob.id)) {
+      btn.innerHTML = '<i class="fa-solid fa-heart" style="color:var(--coral)"></i> Guardado';
+    } else {
+      btn.innerHTML = '<i class="fa-regular fa-heart"></i> Guardar';
+    }
+  }
 }
 
 function renderSaved() {
@@ -204,6 +405,7 @@ async function login() {
     
     currentUser = data.user;
     loggedIn = true;
+    sessionStorage.setItem('juva_currentUser', JSON.stringify(currentUser));
     
     closeModal('auth-modal');
     document.querySelectorAll('#auth-modal input').forEach(i => i.value = '');
@@ -229,6 +431,7 @@ async function login() {
     
     currentUser = { ...foundUser };
     loggedIn = true;
+    sessionStorage.setItem('juva_currentUser', JSON.stringify(currentUser));
     
     closeModal('auth-modal');
     document.querySelectorAll('#auth-modal input').forEach(i => i.value = '');
@@ -246,6 +449,16 @@ async function login() {
   }
 }
 
+function goToDashboard() {
+  if (!loggedIn || !currentUser) {
+    openModal('auth-modal');
+    return;
+  }
+  if (currentUser.role === 'company') showPage('company-dash');
+  else if (currentUser.role === 'admin') showPage('admin-dash');
+  else showPage('student-dash');
+}
+
 // Registrar nuevo usuario en PostgreSQL
 async function registerUser() {
   const activeRoleOpt = document.querySelector('#register-form .role-opt.active span');
@@ -260,12 +473,41 @@ async function registerUser() {
   let age = null;
   let address = null;
   let cedula = null;
+  let ruc = null;
+  let website = null;
+  let logo = null;
+  let founded = null;
+  let description = null;
+  let sector = null;
   
   if (isCompany) {
     const companyNameInput = document.getElementById('reg-company-name');
     name = companyNameInput ? companyNameInput.value.trim() : '';
     const sectorInput = document.getElementById('reg-company-sector');
     career = sectorInput ? sectorInput.value.trim() : 'Industria';
+    
+    const rucInput = document.getElementById('reg-company-ruc');
+    ruc = rucInput ? rucInput.value.trim() : null;
+    
+    const phoneInput = document.getElementById('reg-company-phone');
+    phone = phoneInput ? phoneInput.value.trim() : null;
+    
+    const addressInput = document.getElementById('reg-company-address');
+    address = addressInput ? addressInput.value.trim() : null;
+    
+    const websiteInput = document.getElementById('reg-company-website');
+    website = websiteInput ? websiteInput.value.trim() : null;
+    
+    const logoInput = document.getElementById('reg-company-logo');
+    logo = logoInput && logoInput.files[0] ? logoInput.files[0].name : null;
+    
+    const foundedInput = document.getElementById('reg-company-founded');
+    founded = foundedInput ? foundedInput.value.trim() : null;
+    
+    const descInput = document.getElementById('reg-company-desc');
+    description = descInput ? descInput.value.trim() : null;
+
+    sector = sectorInput ? sectorInput.value.trim() : null;
   } else {
     const firstNameInput = document.getElementById('reg-student-first');
     const lastNameInput = document.getElementById('reg-student-last');
@@ -312,16 +554,38 @@ async function registerUser() {
     return;
   }
   
+  if (isCompany) {
+    if (!ruc || !phone || !address) {
+      showToast('error', 'Por favor, completa los campos obligatorios de la empresa (RUC, Teléfono, Dirección).');
+      return;
+    }
+  }
+  
   if (password !== passwordConfirm) {
     showToast('error', 'Las contraseñas no coinciden.');
     return;
+  }
+  
+  if (!isCompany) {
+    if (phone && !/^\d{8}$/.test(phone)) {
+      showToast('error', 'El número telefónico es inválido. Debe tener exactamente 8 dígitos.');
+      return;
+    }
+    if (cedula && !/^\d{3}-\d{6}-\d{4}[A-Za-z]$/.test(cedula)) {
+      showToast('error', 'El formato de cédula es inválido (ej: 000-000000-0000A).');
+      return;
+    }
+    if (age !== null && age < 18) {
+      showToast('error', 'Debes ser mayor de 18 años para registrarte.');
+      return;
+    }
   }
   
   try {
     const res = await fetch(`${API_URL}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password, role, career, university, phone, dob, age, address, cedula })
+      body: JSON.stringify({ name, email, password, role, career, university, phone, dob, age, address, cedula, ruc, website, logo, founded, description, sector })
     });
     
     const data = await res.json();
@@ -335,6 +599,7 @@ async function registerUser() {
     // Iniciar sesión inmediatamente
     currentUser = data.user;
     loggedIn = true;
+    sessionStorage.setItem('juva_currentUser', JSON.stringify(currentUser));
     
     closeModal('auth-modal');
     document.querySelectorAll('#auth-modal input').forEach(i => i.value = '');
@@ -349,59 +614,191 @@ async function registerUser() {
     else if (currentUser.role === 'admin') showPage('admin-dash');
     else showPage('student-dash');
   } catch (err) {
-    // Fallback register local activado
-    showToast('success', '¡Registro exitoso!');
-    
-    const newUser = {
-      id: Date.now(),
-      name: name || 'Nuevo Usuario',
-      email: email,
-      password: password,
-      role: role,
-      career: career,
-      university: university,
-      phone: phone,
-      dob: dob,
-      age: age,
-      address: address,
-      cedula: cedula,
-      company_id: role === 'company' ? Date.now() : null
-    };
-    USERS.push(newUser);
-    localStorage.setItem('juva_users', JSON.stringify(USERS));
-    
-    currentUser = { ...newUser };
-    loggedIn = true;
-    
-    closeModal('auth-modal');
-    document.querySelectorAll('#auth-modal input').forEach(i => i.value = '');
-    document.getElementById('nav-auth-btns').classList.add('hide');
-    document.getElementById('nav-user-btns').classList.remove('hide');
-    
-    const navAvatar = document.querySelector('.nav-avatar');
-    const initials = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-    if (navAvatar) navAvatar.textContent = initials;
-    
-    if (currentUser.role === 'company') showPage('company-dash');
-    else if (currentUser.role === 'admin') showPage('admin-dash');
-    else showPage('student-dash');
+    console.error('Error al registrar:', err);
+    showToast('error', 'Error al crear la cuenta. Verifica que el servidor esté activo.');
   }
 }
 
 function logout() {
   loggedIn = false;
   currentUser = null;
+  sessionStorage.removeItem('juva_currentUser');
   document.getElementById('nav-auth-btns').classList.remove('hide');
   document.getElementById('nav-user-btns').classList.add('hide');
   showPage('landing');
   showToast('', 'Sesión cerrada');
 }
 
-// Aplicar de forma real guardando en PostgreSQL
-async function applyJob() {
+let currentApplyStep = 1;
+const totalApplySteps = 5;
+
+function openApplyModal() {
   if (!loggedIn || !currentUser) { closeModal('job-modal'); openModal('auth-modal'); return; }
   
   const modalTitle = document.querySelector('#job-modal h2').textContent;
+  const companyInfo = document.querySelector('#job-modal .modal-company-info p').textContent.split(' · ')[0];
+  
+  document.getElementById('apply-job-title').textContent = modalTitle;
+  document.getElementById('apply-job-company').textContent = companyInfo;
+  
+  // Pre-llenar campos de contacto
+  const names = currentUser.name.split(' ');
+  document.getElementById('apply-fn').value = names[0] || '';
+  document.getElementById('apply-ln').value = names.slice(1).join(' ') || '';
+  document.getElementById('apply-phone').value = currentUser.phone || '';
+  document.getElementById('apply-email').value = currentUser.email || '';
+  document.getElementById('apply-city').value = currentUser.address || 'Managua, Nicaragua';
+  
+  // Limpiar otros campos
+  const clEl = document.getElementById('apply-cover-letter');
+  if(clEl) clEl.value = '';
+  const etEl = document.getElementById('apply-exp-title');
+  if(etEl) etEl.value = '';
+  const ecEl = document.getElementById('apply-exp-company');
+  if(ecEl) ecEl.value = '';
+  const eciEl = document.getElementById('apply-exp-city');
+  if(eciEl) eciEl.value = '';
+  const edEl = document.getElementById('apply-exp-desc');
+  if(edEl) edEl.value = '';
+  const cvfEl = document.getElementById('apply-cv-filename');
+  if(cvfEl) cvfEl.textContent = '';
+  const clfEl = document.getElementById('apply-cl-filename');
+  if(clfEl) clfEl.textContent = '';
+  
+  // Pre-llenar educación
+  const schoolEl = document.getElementById('apply-edu-school');
+  if(schoolEl) schoolEl.textContent = currentUser.university || '--';
+  const careerEl = document.getElementById('apply-edu-career');
+  if(careerEl) careerEl.textContent = currentUser.career || '--';
+  
+  currentApplyStep = 1;
+  updateApplyStepUI();
+  
+  openModal('apply-modal');
+}
+
+function updateApplyStepUI() {
+  // Ocultar todos los pasos
+  for (let i = 1; i <= totalApplySteps; i++) {
+    const stepEl = document.getElementById('apply-step-' + i);
+    if (stepEl) {
+      if (i === currentApplyStep) {
+        stepEl.classList.remove('hide');
+      } else {
+        stepEl.classList.add('hide');
+      }
+    }
+  }
+  
+  // Actualizar barra de progreso y label
+  const progressText = document.getElementById('apply-progress-text');
+  const progressBar = document.getElementById('apply-progress-bar');
+  const stepLabel = document.getElementById('apply-step-label');
+  
+  const percentage = (currentApplyStep / totalApplySteps) * 100;
+  if (progressBar) progressBar.style.width = percentage + '%';
+  if (progressText) progressText.textContent = Math.round(percentage) + '%';
+  
+  const labels = [
+    'Información de contacto',
+    'Currículum',
+    'Carta de presentación',
+    'Experiencia laboral',
+    'Educación'
+  ];
+  if (stepLabel) stepLabel.textContent = labels[currentApplyStep - 1] || '';
+  
+  // Actualizar botones
+  const btnBack = document.getElementById('apply-btn-back');
+  const btnNext = document.getElementById('apply-btn-next');
+  
+  if (currentApplyStep === 1) {
+    if (btnBack) btnBack.classList.add('hide');
+  } else {
+    if (btnBack) btnBack.classList.remove('hide');
+  }
+  
+  if (currentApplyStep === totalApplySteps) {
+    if (btnNext) {
+      btnNext.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar solicitud';
+      btnNext.onclick = confirmApplyJob;
+    }
+  } else {
+    if (btnNext) {
+      btnNext.innerHTML = 'Siguiente';
+      btnNext.onclick = nextApplyStep;
+    }
+  }
+}
+
+function nextApplyStep() {
+  const currentStepContainer = document.getElementById('apply-step-' + currentApplyStep);
+  if (currentStepContainer) {
+    const requiredInputs = currentStepContainer.querySelectorAll('input[required], textarea[required], select[required]');
+    for (let input of requiredInputs) {
+      if (!input.value.trim()) {
+        showToast('error', 'Por favor, rellena todos los campos obligatorios.');
+        input.focus();
+        return;
+      }
+    }
+  }
+
+  if (currentApplyStep === 2) {
+    const cvFile = document.getElementById('apply-cv-file');
+    if (!cvFile || cvFile.files.length === 0) {
+      showToast('error', 'Por favor, sube tu currículum (obligatorio).');
+      return;
+    }
+  }
+  
+  if (currentApplyStep === 3) {
+    const clFile = document.getElementById('apply-cl-file');
+    const clText = document.getElementById('apply-cover-letter');
+    if ((!clFile || clFile.files.length === 0) && (!clText || clText.value.trim() === '')) {
+      showToast('error', 'Por favor, sube o escribe tu carta de presentación.');
+      return;
+    }
+  }
+
+  if (currentApplyStep < totalApplySteps) {
+    currentApplyStep++;
+    updateApplyStepUI();
+  }
+}
+
+function prevApplyStep() {
+  if (currentApplyStep > 1) {
+    currentApplyStep--;
+    updateApplyStepUI();
+  }
+}
+
+function toggleEndDate() {
+  const isChecked = document.getElementById('apply-exp-current').checked;
+  const toContainer = document.getElementById('apply-exp-to-container');
+  if (toContainer) {
+    if (isChecked) {
+      toContainer.style.opacity = '0.5';
+      toContainer.style.pointerEvents = 'none';
+    } else {
+      toContainer.style.opacity = '1';
+      toContainer.style.pointerEvents = 'auto';
+    }
+  }
+}
+
+function updateFileName(input, targetId) {
+  const target = document.getElementById(targetId);
+  if (input.files && input.files.length > 0 && target) {
+    target.textContent = input.files[0].name;
+  }
+}
+
+// Confirmar aplicación desde el formulario nuevo
+async function confirmApplyJob() {
+
+  const modalTitle = document.getElementById('apply-job-title').textContent;
   const selectedJob = JOBS.find(j => j.title === modalTitle);
   const job_id = selectedJob ? selectedJob.id : 1;
   
@@ -418,13 +815,108 @@ async function applyJob() {
       return;
     }
     
-    closeModal('job-modal');
-    showToast('success', '¡Postulación registrada de forma real en la Base de Datos!');
+    finalizeApplication(selectedJob);
   } catch (err) {
     // Fallback applyJob local activado
-    closeModal('job-modal');
-    showToast('success', '¡Postulación registrada exitosamente!');
+    finalizeApplication(selectedJob);
   }
+}
+
+function finalizeApplication(selectedJob) {
+  closeModal('apply-modal');
+  closeModal('job-modal');
+  showToast('success', '¡Postulación enviada exitosamente!');
+  
+  const userId = currentUser ? currentUser.id : 'guest';
+  let apps = JSON.parse(localStorage.getItem('juva_apps_' + userId)) || [];
+  apps.unshift({
+    id: selectedJob ? selectedJob.id : 1,
+    icon: selectedJob ? selectedJob.icon : '💼',
+    company: selectedJob ? selectedJob.company : 'Empresa',
+    title: selectedJob ? selectedJob.title : 'Vacante',
+    type: selectedJob ? selectedJob.type : 'Remoto',
+    date: new Date().toLocaleDateString('es-ES', {day: 'numeric', month: 'short', year: 'numeric'}),
+    status: 'En revisión'
+  });
+  localStorage.setItem('juva_apps_' + userId, JSON.stringify(apps));
+
+  const compId = selectedJob ? selectedJob.company_id : 1;
+  let companyApps = JSON.parse(localStorage.getItem('juva_company_apps_' + compId)) || [];
+  companyApps.unshift({
+    name: currentUser ? currentUser.name : 'Usuario Anónimo',
+    career: currentUser ? currentUser.career : 'Estudiante',
+    university: currentUser ? currentUser.university : 'Universidad',
+    role: selectedJob ? selectedJob.title : 'Vacante',
+    status: 'pending',
+    date: new Date().toISOString()
+  });
+  localStorage.setItem('juva_company_apps_' + compId, JSON.stringify(companyApps));
+  
+  loadStudentApplications();
+  
+  // Re-renderizar grids para actualizar el estado de los botones a "Ya aplicaste"
+  if (typeof JOBS !== 'undefined') {
+    renderJobs('jobs-grid', JOBS);
+    renderJobs('rec-jobs-grid', JOBS.slice(0, 4));
+    renderJobs('dash-jobs-grid', JOBS);
+  }
+}
+
+function loadStudentApplications() {
+  const userId = currentUser ? currentUser.id : 'guest';
+  let apps = JSON.parse(localStorage.getItem('juva_apps_' + userId));
+  
+  if (!apps) {
+    if (userId === 1) {
+      apps = [
+        { id: 2, icon: '🎨', company: 'TechNica', title: 'Diseñador UI/UX Junior', type: 'Remoto', date: '12 May 2026', status: 'En revisión' },
+        { id: 4, icon: '📊', company: 'DataNica', title: 'Analista de Datos Junior', type: 'Híbrido', date: '10 May 2026', status: 'Pendiente' }
+      ];
+    } else {
+      apps = [];
+    }
+    localStorage.setItem('juva_apps_' + userId, JSON.stringify(apps));
+  }
+  
+  const appTableBody = document.querySelector('#tab-applications tbody');
+  if (appTableBody) {
+    if (apps.length === 0) {
+      appTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-soft)">No tienes aplicaciones todavía.</td></tr>';
+    } else {
+      appTableBody.innerHTML = apps.map(app => `
+        <tr>
+          <td>
+            <div class="company-cell">
+              <div class="cell-icon">${app.icon}</div><span>${app.company}</span>
+            </div>
+          </td>
+          <td>${app.title}</td>
+          <td>${app.date}</td>
+          <td><span class="tag tag-teal">${app.type}</span></td>
+          <td><span class="status-pill status-review"><i class="fa-solid fa-circle" style="font-size:6px"></i> ${app.status}</span></td>
+          <td><button class="btn btn-ghost btn-sm" onclick="viewJobDetails(${app.id})">Ver</button></td>
+        </tr>
+      `).join('');
+    }
+  }
+  
+  // Actualizar dashboard stats de aplicaciones
+  const statVals = document.querySelectorAll('#tab-overview .stat-val');
+  if (statVals.length >= 4) {
+    statVals[0].textContent = apps.length;
+  }
+  const statTrends = document.querySelectorAll('#tab-overview .stat-trend');
+  if (statTrends.length >= 1) {
+    if (apps.length > 0) {
+      statTrends[0].innerHTML = '<i class="fa-solid fa-arrow-up"></i> Activo esta semana';
+      statTrends[0].className = 'stat-trend positive';
+    } else {
+      statTrends[0].innerHTML = 'Sin actividad reciente';
+      statTrends[0].className = 'stat-trend';
+    }
+  }
+  
+  updateSidebarBadges();
 }
 
 // Crear nueva vacante en PostgreSQL
@@ -457,24 +949,35 @@ async function createJob() {
   }
   
   try {
-    const res = await fetch(`${API_URL}/jobs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title,
-        company_id: currentUser.company_id || 1,
-        location,
-        type,
-        employment_type,
-        salary_min,
-        salary_max,
-        category,
-        description,
-        requirements,
-        benefits: 'Prestaciones de ley\nExcelente ambiente',
-        skills: ['React', 'JavaScript', 'Git']
-      })
-    });
+    const payload = {
+      title,
+      company_id: currentUser.company_id || 1,
+      location,
+      type,
+      employment_type,
+      salary_min,
+      salary_max,
+      category,
+      description,
+      requirements,
+      benefits: 'Prestaciones de ley\nExcelente ambiente',
+      skills: ['React', 'JavaScript', 'Git']
+    };
+
+    let res;
+    if (window.currentEditJobId) {
+      res = await fetch(`${API_URL}/jobs/${window.currentEditJobId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } else {
+      res = await fetch(`${API_URL}/jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    }
     
     const data = await res.json();
     if (data.error) {
@@ -482,7 +985,17 @@ async function createJob() {
       return;
     }
     
-    showToast('success', '¡Vacante publicada y guardada en PostgreSQL!');
+    showToast('success', window.currentEditJobId ? '¡Vacante actualizada!' : '¡Vacante publicada y guardada en PostgreSQL!');
+    
+    if (window.currentDraftId) {
+      deleteDraft(window.currentDraftId, true);
+    }
+    
+    window.currentEditJobId = null;
+    const dashTitle = document.querySelector('#tab-new-vacancy .dash-title');
+    if (dashTitle) dashTitle.textContent = 'Publicar nueva vacante';
+    const publishBtn = document.querySelector('#tab-new-vacancy button.btn-primary');
+    if (publishBtn) publishBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Publicar vacante';
     
     if (titleInput) titleInput.value = '';
     if (descTextarea) descTextarea.value = '';
@@ -492,10 +1005,53 @@ async function createJob() {
     if (locInput) locInput.value = '';
     
     await loadJobsFromServer();
+    renderCompanyData();
     switchCompanyTab('company-overview');
   } catch (err) {
-    // Fallback createJob local activado
-    showToast('success', '¡Vacante publicada exitosamente!');
+    console.error('Error al crear vacante:', err);
+    
+    // Fallback local
+    if (window.currentEditJobId) {
+      const idx = JOBS.findIndex(j => j.id === window.currentEditJobId);
+      if (idx !== -1) {
+        JOBS[idx] = { ...JOBS[idx], title, location, type, employment_type, salary: `$${salary_min}–${salary_max}`, category, description, requirements: requirements ? requirements.split('\n') : [] };
+        localStorage.setItem('juva_jobs', JSON.stringify(JOBS));
+        showToast('success', '¡Vacante actualizada localmente!');
+      }
+    } else {
+      const newJob = {
+        id: Date.now(),
+        title,
+        company: currentUser.name,
+        company_id: currentUser.company_id || 1,
+        icon: '💼',
+        location,
+        type,
+        employment_type,
+        salary: `$${salary_min}–${salary_max}`,
+        category,
+        date: 'Justo ahora',
+        applicants: 0,
+        new: true,
+        description,
+        requirements: requirements ? requirements.split('\n') : [],
+        benefits: ['Prestaciones de ley', 'Excelente ambiente'],
+        tags: ['General']
+      };
+      JOBS.unshift(newJob);
+      localStorage.setItem('juva_jobs', JSON.stringify(JOBS));
+      showToast('success', '¡Vacante publicada localmente!');
+    }
+    
+    if (window.currentDraftId) {
+      deleteDraft(window.currentDraftId, true);
+    }
+    
+    window.currentEditJobId = null;
+    const dashTitle = document.querySelector('#tab-new-vacancy .dash-title');
+    if (dashTitle) dashTitle.textContent = 'Publicar nueva vacante';
+    const publishBtn = document.querySelector('#tab-new-vacancy button.btn-primary');
+    if (publishBtn) publishBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Publicar vacante';
     
     if (titleInput) titleInput.value = '';
     if (descTextarea) descTextarea.value = '';
@@ -504,28 +1060,105 @@ async function createJob() {
     if (salMaxInput) salMaxInput.value = '';
     if (locInput) locInput.value = '';
     
-    const newJob = {
-      id: Date.now(),
-      title,
-      company: currentUser.name,
-      icon: '🏢',
-      location,
-      type,
-      salary: `$${salary_min}–${salary_max}`,
-      tags: ['Nuevo'],
-      category,
-      date: 'Justo ahora',
-      applicants: 0,
-      new: true,
-      description,
-      requirements: requirements.split('\n'),
-      benefits: ['Prestaciones de ley']
-    };
-    JOBS.unshift(newJob);
-    localStorage.setItem('juva_jobs', JSON.stringify(JOBS));
-    
     renderJobs('jobs-grid', JOBS);
-    switchCompanyTab('company-overview');
+    renderJobs('rec-jobs-grid', JOBS.slice(0, 4));
+    filterDashJobs();
+    renderCompanyData();
+    switchCompanyTab('vacancies');
+  }
+}
+
+window.currentDraftId = null;
+
+function saveDraftJob() {
+  if (!currentUser) return;
+  
+  const titleInput = document.querySelector('#tab-new-vacancy input[placeholder="Ej: Desarrollador Frontend Jr."]');
+  const categorySelect = document.querySelector('#tab-new-vacancy select');
+  const descTextarea = document.querySelectorAll('#tab-new-vacancy textarea')[0];
+  const reqTextarea = document.querySelectorAll('#tab-new-vacancy textarea')[1];
+  const typeSelect = document.querySelectorAll('#tab-new-vacancy select')[1];
+  const empTypeSelect = document.querySelectorAll('#tab-new-vacancy select')[2];
+  const salMinInput = document.querySelectorAll('#tab-new-vacancy input')[1];
+  const salMaxInput = document.querySelectorAll('#tab-new-vacancy input')[2];
+  const locInput = document.querySelectorAll('#tab-new-vacancy input')[3];
+  
+  const draft = {
+    id: window.currentDraftId || ('draft_' + Date.now()),
+    title: titleInput ? titleInput.value : '',
+    category: categorySelect ? categorySelect.value : '',
+    description: descTextarea ? descTextarea.value : '',
+    requirements: reqTextarea ? reqTextarea.value : '',
+    type: typeSelect ? typeSelect.value : 'Remoto',
+    employment_type: empTypeSelect ? empTypeSelect.value : 'Tiempo completo',
+    salary_min: salMinInput ? salMinInput.value : '',
+    salary_max: salMaxInput ? salMaxInput.value : '',
+    location: locInput ? locInput.value : ''
+  };
+  
+  let drafts = JSON.parse(localStorage.getItem('juva_drafts_' + (currentUser.company_id || 1))) || [];
+  
+  const existingIndex = drafts.findIndex(d => d.id === draft.id);
+  if (existingIndex !== -1) {
+    drafts[existingIndex] = draft;
+  } else {
+    drafts.unshift(draft);
+  }
+  
+  localStorage.setItem('juva_drafts_' + (currentUser.company_id || 1), JSON.stringify(drafts));
+  window.currentDraftId = null;
+  
+  showToast('success', 'Borrador guardado en Mis Vacantes');
+  
+  if (titleInput) titleInput.value = '';
+  if (descTextarea) descTextarea.value = '';
+  if (reqTextarea) reqTextarea.value = '';
+  if (salMinInput) salMinInput.value = '';
+  if (salMaxInput) salMaxInput.value = '';
+  if (locInput) locInput.value = '';
+  
+  renderCompanyData();
+  switchCompanyTab('vacancies');
+}
+
+function editDraft(id) {
+  let drafts = JSON.parse(localStorage.getItem('juva_drafts_' + (currentUser.company_id || 1))) || [];
+  const draft = drafts.find(d => d.id === id);
+  if (!draft) return;
+  
+  window.currentDraftId = id;
+  
+  document.querySelector('#tab-new-vacancy input[placeholder="Ej: Desarrollador Frontend Jr."]').value = draft.title || '';
+  const catSel = document.querySelector('#tab-new-vacancy select');
+  if (catSel && draft.category) catSel.value = draft.category;
+  
+  document.querySelectorAll('#tab-new-vacancy textarea')[0].value = draft.description || '';
+  document.querySelectorAll('#tab-new-vacancy textarea')[1].value = draft.requirements || '';
+  
+  const typeSel = document.querySelectorAll('#tab-new-vacancy select')[1];
+  if (typeSel && draft.type) typeSel.value = draft.type;
+  
+  const empTypeSel = document.querySelectorAll('#tab-new-vacancy select')[2];
+  if (empTypeSel && draft.employment_type) empTypeSel.value = draft.employment_type;
+  
+  document.querySelectorAll('#tab-new-vacancy input')[1].value = draft.salary_min || '';
+  document.querySelectorAll('#tab-new-vacancy input')[2].value = draft.salary_max || '';
+  document.querySelectorAll('#tab-new-vacancy input')[3].value = draft.location || '';
+  
+  switchCompanyTab('new-vacancy');
+}
+
+function deleteDraft(id, skipConfirm = false) {
+  if (!skipConfirm && !confirm('¿Estás seguro de eliminar este borrador?')) return;
+  let drafts = JSON.parse(localStorage.getItem('juva_drafts_' + (currentUser.company_id || 1))) || [];
+  drafts = drafts.filter(d => d.id !== id);
+  localStorage.setItem('juva_drafts_' + (currentUser.company_id || 1), JSON.stringify(drafts));
+  
+  if (window.currentDraftId === id) window.currentDraftId = null;
+  
+  if (!skipConfirm) {
+    showToast('success', 'Borrador eliminado');
+    renderCompanyData();
   }
 }
 
@@ -534,9 +1167,22 @@ function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   window.scrollTo(0, 0);
-  if (name === 'student-dash') { initStudentCharts(); renderStudentData(); }
+  if (name === 'student-dash') { initStudentCharts(); renderStudentData(); checkSavedCV(); }
   if (name === 'company-dash') { initCompanyCharts(); renderCompanyData(); }
   if (name === 'admin-dash') { initAdminCharts(); }
+}
+
+async function checkSavedCV() {
+  const userId = currentUser ? currentUser.id : 1;
+  try {
+    const response = await fetch(`http://localhost:3000/api/cv/${userId}`);
+    if (response.ok) {
+      const viewBtn = document.getElementById('view-cv-btn');
+      if (viewBtn) viewBtn.style.display = 'inline-block';
+    }
+  } catch (error) {
+    // console.log('No se pudo verificar el CV guardado');
+  }
 }
 
 function scrollToSection(sel) {
@@ -549,14 +1195,258 @@ function switchDashTab(tab) {
   document.querySelectorAll('#page-student-dash .dash-tab').forEach(t => t.classList.remove('active'));
   event.currentTarget.classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
-  if (tab === 'jobs') renderJobs('dash-jobs-grid', JOBS);
+  if (tab === 'jobs') filterDashJobs();
   if (tab === 'saved') renderSaved();
+  if (tab === 'notifications') loadNotifications();
 }
 function switchCompanyTab(tab) {
   document.querySelectorAll('#page-company-dash .sidebar-item').forEach(i => i.classList.remove('active'));
   document.querySelectorAll('#page-company-dash .dash-tab').forEach(t => t.classList.remove('active'));
-  event.currentTarget.classList.add('active');
+  if (typeof event !== 'undefined' && event.currentTarget) event.currentTarget.classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'company-profile') loadCompanyProfile();
+  
+  if (tab === 'new-vacancy' && typeof event !== 'undefined' && event.currentTarget && event.currentTarget.textContent.includes('Nueva vacante')) {
+    window.currentEditJobId = null;
+    const dashTitle = document.querySelector('#tab-new-vacancy .dash-title');
+    if (dashTitle) dashTitle.textContent = 'Publicar nueva vacante';
+    const publishBtn = document.querySelector('#tab-new-vacancy button.btn-primary');
+    if (publishBtn) publishBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Publicar vacante';
+    
+    const titleInput = document.querySelector('#tab-new-vacancy input[placeholder="Ej: Desarrollador Frontend Jr."]');
+    if (titleInput) titleInput.value = '';
+    const descTextareas = document.querySelectorAll('#tab-new-vacancy textarea');
+    if (descTextareas.length > 0) descTextareas[0].value = '';
+    if (descTextareas.length > 1) descTextareas[1].value = '';
+    const inputs = document.querySelectorAll('#tab-new-vacancy input');
+    if (inputs.length > 1) inputs[1].value = '';
+    if (inputs.length > 2) inputs[2].value = '';
+    if (inputs.length > 3) inputs[3].value = '';
+  }
+}
+
+let tempCompanyImages = { logo: null, banner: null, gal1: null, gal2: null, gal3: null };
+let currentCompanyProfile = {};
+
+function previewCompanyImage(event, previewId, key) {
+  const file = event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      tempCompanyImages[key] = e.target.result;
+      const preview = document.getElementById(previewId);
+      if (preview) {
+        preview.style.backgroundImage = `url(${e.target.result})`;
+        preview.textContent = '';
+      }
+    }
+    reader.readAsDataURL(file);
+  }
+}
+
+async function loadCompanyProfile() {
+  if (!currentUser || !currentUser.company_id) return;
+  try {
+    const res = await fetch(`${API_URL}/companies/${currentUser.company_id}`);
+    if (!res.ok) throw new Error('Empresa no encontrada');
+    const company = await res.json();
+    currentCompanyProfile = company;
+    
+    // Limpiar temporales
+    tempCompanyImages = { logo: null, banner: null, gal1: null, gal2: null, gal3: null };
+    
+    document.getElementById('edit-comp-name').value = company.name || '';
+    document.getElementById('edit-comp-ruc').value = company.ruc || '';
+    document.getElementById('edit-comp-phone').value = company.phone || '';
+    document.getElementById('edit-comp-location').value = company.location || '';
+    document.getElementById('edit-comp-website').value = company.website || '';
+    document.getElementById('edit-comp-sector').value = company.sector || '';
+    document.getElementById('edit-comp-founded').value = company.founded_year || '';
+    document.getElementById('edit-comp-desc').value = company.description || '';
+    
+    // Nuevos campos
+    if (document.getElementById('edit-comp-size')) document.getElementById('edit-comp-size').value = company.company_size || '';
+    if (document.getElementById('edit-comp-benefits')) document.getElementById('edit-comp-benefits').value = company.benefits || '';
+    if (document.getElementById('edit-comp-facebook')) document.getElementById('edit-comp-facebook').value = company.facebook_url || '';
+    if (document.getElementById('edit-comp-twitter')) document.getElementById('edit-comp-twitter').value = company.twitter_url || '';
+    if (document.getElementById('edit-comp-instagram')) document.getElementById('edit-comp-instagram').value = company.instagram_url || '';
+    if (document.getElementById('edit-comp-video')) document.getElementById('edit-comp-video').value = company.video_url || '';
+    if (document.getElementById('edit-comp-contact-name')) document.getElementById('edit-comp-contact-name').value = company.contact_name || '';
+    if (document.getElementById('edit-comp-contact-email')) document.getElementById('edit-comp-contact-email').value = company.contact_email || '';
+    
+    // Cargar previsualizaciones de imágenes
+    const updatePreview = (id, url, text) => {
+      const el = document.getElementById(id);
+      if (el) {
+        if (url) {
+          el.style.backgroundImage = `url(${url})`;
+          el.textContent = '';
+        } else {
+          el.style.backgroundImage = 'none';
+          el.textContent = text;
+        }
+      }
+    };
+    
+    updatePreview('edit-comp-logo-preview', company.logo_url, 'Sin Logo');
+    updatePreview('edit-comp-banner-preview', company.banner_url, 'Sin Banner');
+    
+    let gallery = [];
+    try {
+      if (company.gallery_urls) gallery = JSON.parse(company.gallery_urls);
+    } catch(e){}
+    
+    updatePreview('edit-comp-gal1-preview', gallery[0], 'Foto 1');
+    updatePreview('edit-comp-gal2-preview', gallery[1], 'Foto 2');
+    updatePreview('edit-comp-gal3-preview', gallery[2], 'Foto 3');
+    
+    // Reset inputs de archivo
+    ['edit-comp-logo','edit-comp-banner','edit-comp-gal1','edit-comp-gal2','edit-comp-gal3'].forEach(id => {
+      if (document.getElementById(id)) document.getElementById(id).value = '';
+    });
+  } catch (err) {
+    console.error('Error cargando perfil de empresa:', err);
+    showToast('error', 'No se pudo cargar el perfil de la empresa.');
+  }
+}
+
+async function deleteJob(id) {
+  if (!confirm('¿Estás seguro de que deseas eliminar esta vacante?')) return;
+  try {
+    const res = await fetch(`${API_URL}/jobs/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Error al eliminar');
+    showToast('success', 'Vacante eliminada exitosamente');
+    await loadJobsFromServer();
+    renderCompanyData();
+  } catch(err) {
+    console.error('Error al eliminar:', err);
+    showToast('error', 'No se pudo eliminar la vacante');
+  }
+}
+
+window.currentEditJobId = null;
+
+function editJob(id) {
+  const job = JOBS.find(j => j.id === id);
+  if (!job) return;
+  
+  window.currentEditJobId = id;
+  
+  const titleInput = document.querySelector('#tab-new-vacancy input[placeholder="Ej: Desarrollador Frontend Jr."]');
+  if (titleInput) titleInput.value = job.title || '';
+  
+  const categorySelect = document.querySelector('#tab-new-vacancy select');
+  if (categorySelect && job.category) {
+    if(job.category === 'tech') categorySelect.value = 'Tecnología';
+    else if(job.category === 'finance') categorySelect.value = 'Finanzas';
+    else if(job.category === 'design') categorySelect.value = 'Diseño';
+    else if(job.category === 'marketing') categorySelect.value = 'Marketing';
+    else categorySelect.value = 'Admin';
+  }
+  
+  const descTextarea = document.querySelectorAll('#tab-new-vacancy textarea')[0];
+  if (descTextarea) descTextarea.value = job.description || '';
+  
+  const reqTextarea = document.querySelectorAll('#tab-new-vacancy textarea')[1];
+  if (reqTextarea) reqTextarea.value = Array.isArray(job.requirements) ? job.requirements.join('\n') : (job.requirements || '');
+  
+  const typeSelect = document.querySelectorAll('#tab-new-vacancy select')[1];
+  if (typeSelect && job.type) typeSelect.value = job.type;
+  
+  const empTypeSelect = document.querySelectorAll('#tab-new-vacancy select')[2];
+  if (empTypeSelect && job.employment_type) empTypeSelect.value = job.employment_type;
+  
+  const salMinInput = document.querySelectorAll('#tab-new-vacancy input')[1];
+  if (salMinInput) salMinInput.value = (job.salary_min || job.salary ? String(job.salary).replace(/[^0-9–]/g,'').split('–')[0] : '');
+  
+  const salMaxInput = document.querySelectorAll('#tab-new-vacancy input')[2];
+  if (salMaxInput) salMaxInput.value = (job.salary_max || job.salary ? String(job.salary).replace(/[^0-9–]/g,'').split('–')[1] || '' : '');
+  
+  const locInput = document.querySelectorAll('#tab-new-vacancy input')[3];
+  if (locInput) locInput.value = job.location || '';
+  
+  const dashTitle = document.querySelector('#tab-new-vacancy .dash-title');
+  if (dashTitle) dashTitle.textContent = 'Editar vacante';
+  const publishBtn = document.querySelector('#tab-new-vacancy button.btn-primary');
+  if (publishBtn) publishBtn.innerHTML = '<i class="fa-solid fa-save"></i> Guardar cambios';
+  
+  switchCompanyTab('new-vacancy');
+}
+
+async function saveCompanyProfile() {
+  if (!currentUser || !currentUser.company_id) return;
+  
+  let galleryArr = [];
+  try { if (currentCompanyProfile.gallery_urls) galleryArr = JSON.parse(currentCompanyProfile.gallery_urls); } catch(e){}
+  
+  const finalGal1 = tempCompanyImages.gal1 || galleryArr[0] || null;
+  const finalGal2 = tempCompanyImages.gal2 || galleryArr[1] || null;
+  const finalGal3 = tempCompanyImages.gal3 || galleryArr[2] || null;
+  const finalGallery = [finalGal1, finalGal2, finalGal3].filter(Boolean);
+  
+  const payload = {
+    name: document.getElementById('edit-comp-name')?.value.trim() || '',
+    ruc: document.getElementById('edit-comp-ruc')?.value.trim() || '',
+    phone: document.getElementById('edit-comp-phone')?.value.trim() || '',
+    location: document.getElementById('edit-comp-location')?.value.trim() || '',
+    website: document.getElementById('edit-comp-website')?.value.trim() || '',
+    sector: document.getElementById('edit-comp-sector')?.value.trim() || '',
+    founded_year: document.getElementById('edit-comp-founded')?.value.trim() ? parseInt(document.getElementById('edit-comp-founded').value) : null,
+    description: document.getElementById('edit-comp-desc')?.value.trim() || '',
+    
+    company_size: document.getElementById('edit-comp-size')?.value || '',
+    benefits: document.getElementById('edit-comp-benefits')?.value.trim() || '',
+    facebook_url: document.getElementById('edit-comp-facebook')?.value.trim() || '',
+    twitter_url: document.getElementById('edit-comp-twitter')?.value.trim() || '',
+    instagram_url: document.getElementById('edit-comp-instagram')?.value.trim() || '',
+    video_url: document.getElementById('edit-comp-video')?.value.trim() || '',
+    contact_name: document.getElementById('edit-comp-contact-name')?.value.trim() || '',
+    contact_email: document.getElementById('edit-comp-contact-email')?.value.trim() || '',
+    
+    logo_filename: null,
+    logo_url: tempCompanyImages.logo || currentCompanyProfile.logo_url || null,
+    banner_url: tempCompanyImages.banner || currentCompanyProfile.banner_url || null,
+    gallery_urls: finalGallery.length > 0 ? JSON.stringify(finalGallery) : null
+  };
+  
+  try {
+    const res = await fetch(`${API_URL}/companies/${currentUser.company_id}/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!res.ok) throw new Error('Error al actualizar');
+    showToast('success', 'Perfil de la empresa actualizado exitosamente.');
+    
+    // Actualizar la UI visualmente
+    const subtitle = document.getElementById('company-welcome-subtitle');
+    if (subtitle) subtitle.textContent = `${payload.name || currentUser.name} - ${payload.location || 'Managua, Nicaragua'}`;
+    
+    const nameEl = document.querySelector('#page-company-dash .sidebar-section div[style*="font-weight:600"]');
+    if (nameEl && payload.name) nameEl.textContent = payload.name;
+    
+    currentUser.company_logo_url = payload.logo_url || currentCompanyProfile.logo_url;
+    if (payload.name) currentUser.name = payload.name;
+    if (payload.location) currentUser.location = payload.location;
+    sessionStorage.setItem('juva_currentUser', JSON.stringify(currentUser));
+    
+    const initEl = document.querySelector('#page-company-dash .sidebar-section .fa-laptop')?.parentElement || document.querySelector('#page-company-dash .sidebar-section div[style*="font-size:20px"]');
+    if (initEl) {
+      if (currentUser.company_logo_url) {
+        initEl.textContent = '';
+        initEl.style.backgroundImage = `url(${currentUser.company_logo_url})`;
+        initEl.style.backgroundSize = 'cover';
+        initEl.style.backgroundPosition = 'center';
+      } else {
+        initEl.textContent = (payload.name || currentUser.name)[0].toUpperCase();
+        initEl.style.backgroundImage = 'none';
+      }
+    }
+  } catch (err) {
+    console.error('Error actualizando perfil de empresa:', err);
+    showToast('error', 'Error al guardar los cambios.');
+  }
 }
 function switchAdminTab(tab) {
   document.querySelectorAll('#page-admin-dash .sidebar-item').forEach(i => i.classList.remove('active'));
@@ -573,7 +1463,26 @@ function renderStudentData() {
   const profileName = document.querySelector('.profile-name');
   const profileRole = document.querySelector('.profile-role');
   
-  if (profileAvatar) profileAvatar.textContent = initials;
+  const avatars = [
+    document.querySelector('.profile-avatar'),
+    document.querySelector('.sidebar-avatar-init'),
+    document.querySelector('.nav-avatar')
+  ];
+  
+  avatars.forEach(av => {
+    if (av) {
+      if (currentUser.avatar) {
+        av.style.backgroundImage = `url(${currentUser.avatar})`;
+        av.style.backgroundSize = 'cover';
+        av.style.backgroundPosition = 'center';
+        av.textContent = '';
+      } else {
+        av.style.backgroundImage = 'none';
+        av.textContent = initials;
+      }
+    }
+  });
+
   if (profileName) profileName.textContent = currentUser.name;
   if (profileRole) profileRole.textContent = `${currentUser.career} · ${currentUser.university}`;
   
@@ -583,8 +1492,6 @@ function renderStudentData() {
   const welcomeTitle = document.getElementById('student-welcome-title');
   if (welcomeTitle) welcomeTitle.textContent = `Bienvenido, ${currentUser.name.split(' ')[0]} 👋`;
   
-  const sidebarAvatar = document.querySelector('.sidebar-avatar-init');
-  if (sidebarAvatar) sidebarAvatar.textContent = initials;
   const sidebarName = document.querySelector('.sidebar-name');
   if (sidebarName) sidebarName.textContent = currentUser.name;
   const sidebarCareer = document.querySelector('.sidebar-career');
@@ -605,14 +1512,23 @@ function renderStudentData() {
   const profileAddress = document.getElementById('profile-address');
   if (profileAddress) profileAddress.textContent = currentUser.address || 'No especificada';
 
+  // Calcular perfil completado
+  let profileScore = 20; // 20% base
+  if (currentUser.phone) profileScore += 20;
+  if (currentUser.cedula) profileScore += 20;
+  if (currentUser.dob) profileScore += 20;
+  if (currentUser.address) profileScore += 20;
+
+  const statVals = document.querySelectorAll('#tab-overview .stat-val');
+  if (statVals.length >= 4) {
+    statVals[1].textContent = currentUser.id === 1 ? '124' : '0'; // mock vistas
+    statVals[2].textContent = favorites ? favorites.size : 0;
+    statVals[3].textContent = profileScore + '%';
+  }
+
   if (currentUser.id !== 1) {
-    const statVals = document.querySelectorAll('#tab-overview .stat-val');
-    if (statVals.length >= 4) { statVals[0].textContent='0'; statVals[1].textContent='0'; statVals[2].textContent='0'; statVals[3].textContent='20%'; }
     const statTrends = document.querySelectorAll('#tab-overview .stat-trend');
-    if (statTrends.length >= 2) { statTrends[0].innerHTML='Sin actividad reciente'; statTrends[0].className='stat-trend'; statTrends[1].innerHTML='Sin actividad reciente'; statTrends[1].className='stat-trend'; }
-    
-    const appTable = document.querySelector('#tab-applications tbody');
-    if (appTable) appTable.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-soft)">No tienes aplicaciones todavía.</td></tr>';
+    if (statTrends.length >= 2) { statTrends[1].innerHTML='Sin actividad reciente'; statTrends[1].className='stat-trend'; }
     
     const skillsCloud = document.querySelector('#tab-profile .skills-cloud');
     if (skillsCloud) skillsCloud.innerHTML = '<div style="color:var(--text-soft);font-size:13px;padding:10px 0">No has agregado habilidades.</div>';
@@ -629,76 +1545,283 @@ function renderStudentData() {
     const notifList = document.querySelector('#tab-notifications .notif-list');
     if (notifList) notifList.innerHTML = '<li class="notif-item"><div class="notif-icon" style="background:var(--teal-pale)"><i class="fa-solid fa-check" style="color:var(--teal)"></i></div><div class="notif-content"><p>Bienvenido a JuvaConnect. Tu perfil ha sido creado exitosamente.</p><span>Justo ahora</span></div></li>';
     
+    // Load fresh notifications from DB
+    loadNotifications();
+
     const charts = document.querySelectorAll('#tab-overview .chart-container');
     charts.forEach(c => c.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100px;color:var(--text-soft);font-size:13px">No hay suficientes datos todavía</div>');
   }
+  
+  loadStudentApplications();
 }
 
 // COMPANY DATA (RENDER CONSOLIDADO)
 function renderCompanyData() {
   if (!currentUser) return;
   const initEl = document.querySelector('#page-company-dash .sidebar-section .fa-laptop')?.parentElement || document.querySelector('#page-company-dash .sidebar-section div[style*="font-size:20px"]');
-  if (initEl) initEl.textContent = currentUser.name[0].toUpperCase();
+  if (initEl) {
+    if (currentUser.company_logo_url) {
+      initEl.textContent = '';
+      initEl.style.backgroundImage = `url(${currentUser.company_logo_url})`;
+      initEl.style.backgroundSize = 'cover';
+      initEl.style.backgroundPosition = 'center';
+    } else {
+      initEl.textContent = currentUser.name[0].toUpperCase();
+      initEl.style.backgroundImage = 'none';
+    }
+  }
   const nameEl = document.querySelector('#page-company-dash .sidebar-section div[style*="font-weight:600"]');
   if (nameEl) nameEl.textContent = currentUser.name;
   
   const companySubtitle = document.getElementById('company-welcome-subtitle');
-  if (companySubtitle) companySubtitle.textContent = `${currentUser.name} — Managua, Nicaragua`;
+  // Se deja dinámico si la empresa ya guardó su ubicación, pero como base se pone esta info
+  if (companySubtitle && !companySubtitle.textContent.includes('—')) {
+    companySubtitle.textContent = `${currentUser.name} — Managua, Nicaragua`;
+  }
 
-  if (currentUser.id !== 2) {
-    const vacList = document.getElementById('vacancies-list');
-    if (vacList) vacList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-soft)">No tienes vacantes publicadas.</div>';
-    
-    const rc = document.getElementById('recent-candidates');
+  const myJobs = JOBS.filter(j => j.company_id === currentUser.company_id || j.company === currentUser.name);
+  let drafts = JSON.parse(localStorage.getItem('juva_drafts_' + (currentUser.company_id || 1))) || [];
+
+  const vacTitle = document.querySelector('#tab-vacancies .dash-title');
+  if (vacTitle) {
+    vacTitle.innerHTML = `Mis Vacantes <span style="font-size: 14px; font-weight: normal; color: var(--text-soft); margin-left: 8px;">(${myJobs.length} activas, ${drafts.length} borradores)</span>`;
+  }
+
+  const vacList = document.getElementById('vacancies-list');
+  if (vacList) {
+    if (myJobs.length === 0 && drafts.length === 0) {
+      vacList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-soft)">No tienes vacantes publicadas ni borradores.</div>';
+    } else {
+      let html = '';
+      
+      // Render drafts first
+      html += drafts.map(v => `<div class="vacancy-card" style="border-left: 4px solid var(--amber);">
+        <div class="vacancy-info">
+          <div class="vacancy-title">${v.title || '(Borrador sin título)'}</div>
+          <div class="vacancy-meta">
+            <span><i class="fa-solid fa-wifi"></i> ${v.type || 'Remoto'}</span>
+            <span><i class="fa-solid fa-clock"></i> ${v.employment_type || 'Tiempo completo'}</span>
+            <span><i class="fa-solid fa-file-lines"></i> Borrador</span>
+          </div>
+        </div>
+        <span class="status-pill status-pending" style="color: var(--amber); background: var(--amber-pale);">Borrador</span>
+        <div class="vacancy-actions">
+          <button class="btn btn-ghost btn-sm" onclick="editDraft('${v.id}')"><i class="fa-solid fa-edit"></i> Continuar</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--coral)" onclick="deleteDraft('${v.id}')"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      </div>`).join('');
+      
+      // Render active jobs
+      html += myJobs.map(v => `<div class="vacancy-card">
+        <div class="vacancy-info">
+          <div class="vacancy-title">${v.title}</div>
+          <div class="vacancy-meta">
+            <span><i class="fa-solid fa-wifi"></i> ${v.type || 'Remoto'}</span>
+            <span><i class="fa-solid fa-clock"></i> ${v.employment_type || 'Tiempo completo'}</span>
+            <span><i class="fa-solid fa-users"></i> ${v.applicants || 0} candidatos</span>
+          </div>
+        </div>
+        <span class="status-pill status-active">Activa</span>
+        <div class="vacancy-actions">
+          <button class="btn btn-ghost btn-sm" onclick="editJob(${v.id})"><i class="fa-solid fa-edit"></i> Editar</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--coral)" onclick="deleteJob(${v.id})"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      </div>`).join('');
+      
+      vacList.innerHTML = html;
+    }
+  }
+
+  loadCandidates();
+}
+
+async function loadCandidates() {
+  if (!currentUser) return;
+  const rc = document.getElementById('recent-candidates');
+  const candidatesTableBody = document.querySelector('#tab-candidates tbody');
+  const compId = currentUser.company_id || 1;
+  let candidates = [];
+  
+  try {
+    const res = await fetch(`${API_URL}/companies/${compId}/candidates`);
+    if (res.ok) {
+      candidates = await res.json();
+    } else {
+      throw new Error('Fallback local');
+    }
+  } catch (err) {
+    // Fallback local
+    candidates = JSON.parse(localStorage.getItem('juva_company_apps_' + compId)) || [];
+    if (candidates.length === 0 && currentUser.id === 2) {
+      candidates = [
+        { name: 'Juan Pérez', career: 'Ing. en Sistemas', university: 'UNI', role: 'Frontend Developer Jr.', status: 'review', date: new Date().toISOString() },
+        { name: 'María Rodríguez', career: 'Ing. Industrial', university: 'UNAN', role: 'Backend Developer', status: 'pending', date: new Date().toISOString() },
+        { name: 'Carlos López', career: 'Diseño Gráfico', university: 'UAM', role: 'Full Stack Developer', status: 'accepted', date: new Date().toISOString() }
+      ];
+      localStorage.setItem('juva_company_apps_' + compId, JSON.stringify(candidates));
+    }
+  }
+
+  const statVals = document.querySelectorAll('#tab-company-overview .stat-val');
+  if (statVals.length >= 4) { 
+    statVals[1].textContent = candidates.length; 
+    if(currentUser.id !== 2) {
+      statVals[2].textContent='0'; 
+      statVals[3].textContent='0'; 
+    }
+  }
+  
+  const badgeCandidates = document.getElementById('badge-company-candidates');
+  if (badgeCandidates) {
+    badgeCandidates.textContent = candidates.length;
+    badgeCandidates.style.display = candidates.length > 0 ? 'inline-block' : 'none';
+  }
+
+  const chipTodos = document.getElementById('chip-todos');
+  const chipPending = document.getElementById('chip-pending');
+  const chipReview = document.getElementById('chip-review');
+  const chipAccepted = document.getElementById('chip-accepted');
+  const chipRejected = document.getElementById('chip-rejected');
+
+  if (chipTodos) chipTodos.textContent = `Todos (${candidates.length})`;
+  if (chipPending) chipPending.textContent = `Pendientes (${candidates.filter(c => c.status === 'pending').length})`;
+  if (chipReview) chipReview.textContent = `En revisión (${candidates.filter(c => c.status === 'review').length})`;
+  if (chipAccepted) chipAccepted.textContent = `Aceptados (${candidates.filter(c => c.status === 'accepted').length})`;
+  if (chipRejected) chipRejected.textContent = `Rechazados (${candidates.filter(c => c.status === 'rejected').length})`;
+
+
+  if (candidates.length === 0) {
     if (rc) rc.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-soft)">Aún no tienes candidatos.</div>';
-    
-    const statVals = document.querySelectorAll('#tab-company-overview .stat-val');
-    if (statVals.length >= 4) { statVals[0].textContent='0'; statVals[1].textContent='0'; statVals[2].textContent='0'; statVals[3].textContent='0'; }
+    if (candidatesTableBody) candidatesTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay candidatos</td></tr>';
     
     const charts = document.querySelectorAll('#tab-company-overview .chart-container');
     charts.forEach(c => c.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100px;color:var(--text-soft);font-size:13px">No hay suficientes datos todavía</div>');
     return;
   }
   
-  const vacList = document.getElementById('vacancies-list');
-  if (vacList) vacList.innerHTML = [
-    { t: 'Frontend Developer Jr.', m: 'Remoto', type: 'Tiempo completo', n: 12, status: 'active' },
-    { t: 'Backend Developer Node.js', m: 'Remoto', type: 'Tiempo completo', n: 18, status: 'active' },
-    { t: 'Diseñador UI/UX', m: 'Híbrido', type: 'Medio tiempo', n: 5, status: 'active' },
-    { t: 'Data Analyst Intern', m: 'Presencial', type: 'Pasantía', n: 30, status: 'inactive' },
-  ].map(v => `<div class="vacancy-card">
-    <div class="vacancy-info">
-      <div class="vacancy-title">${v.t}</div>
-      <div class="vacancy-meta">
-        <span><i class="fa-solid fa-wifi"></i> ${v.m}</span>
-        <span><i class="fa-solid fa-clock"></i> ${v.type}</span>
-        <span><i class="fa-solid fa-users"></i> ${v.n} candidatos</span>
-      </div>
-    </div>
-    <span class="status-pill status-${v.status}">${v.status === 'active' ? 'Activa' : 'Cerrada'}</span>
-    <div class="vacancy-actions">
-      <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-edit"></i> Editar</button>
-      <button class="btn btn-primary btn-sm" onclick="switchCompanyTab('candidates')"><i class="fa-solid fa-users"></i> Ver candidatos</button>
-    </div>
-  </div>`).join('');
+  if (rc) {
+    rc.innerHTML = candidates.slice(0, 5).map(c => {
+      const init = c.name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+      let bg = 'blue';
+      if (c.status === 'pending') bg = 'teal';
+      else if (c.status === 'accepted') bg = 'coral';
+      
+      return `<div class="candidate-card">
+        <div class="candidate-avatar" style="background:var(--${bg}-pale);color:var(--${bg})">${init}</div>
+        <div class="candidate-info">
+          <div class="candidate-name">${c.name}</div>
+          <div class="candidate-career">${c.career} · ${c.role}</div>
+        </div>
+        <span class="status-pill status-${c.status}">${c.status === 'pending' ? 'Pendiente' : c.status === 'accepted' ? 'Aceptado' : 'En revisión'}</span>
+        <div class="candidate-actions">
+          <button class="btn btn-ghost btn-sm" onclick="viewCandidateCV('${c.user_id || c.name}')">Ver CV</button>
+          <button class="btn btn-primary btn-sm" onclick="updateCandidateStatus('${c.application_id || c.name}', 'accepted')">Aceptar</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  
+  if (candidatesTableBody) {
+    candidatesTableBody.innerHTML = candidates.map(c => {
+      const init = c.name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+      let bg = 'blue';
+      if (c.status === 'pending') bg = 'teal';
+      else if (c.status === 'accepted') bg = 'coral';
+      const dateStr = new Date(c.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+      
+      return `<tr>
+        <td>
+          <div class="company-cell">
+            <div class="candidate-avatar" style="display:inline-flex;width:32px;height:32px;font-size:12px;background:var(--${bg}-pale);color:var(--${bg})">${init}</div>
+            <span style="margin-left:8px">${c.name}</span>
+          </div>
+        </td>
+        <td>${c.role}</td>
+        <td>${c.university}</td>
+        <td>${dateStr}</td>
+        <td><span class="status-pill status-${c.status}">${c.status === 'pending' ? 'Pendiente' : c.status === 'accepted' ? 'Aceptado' : 'En revisión'}</span></td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost btn-sm" onclick="viewCandidateCV('${c.user_id || c.name}')">Ver CV</button>
+            <button class="btn btn-primary btn-sm" onclick="updateCandidateStatus('${c.application_id || c.name}', 'accepted')">Aceptar</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+}
 
-  const rc = document.getElementById('recent-candidates');
-  if (rc) rc.innerHTML = [
-    { n: 'Juan Pérez', c: 'Ing. en Sistemas · UNI', role: 'Frontend Developer Jr.', status: 'review', init: 'JP', bg: 'blue' },
-    { n: 'María Rodríguez', c: 'Ing. Industrial · UNAN', role: 'Backend Developer', status: 'pending', init: 'MR', bg: 'teal' },
-    { n: 'Carlos López', c: 'Diseño Gráfico · UAM', role: 'Full Stack Developer', status: 'accepted', init: 'CL', bg: 'coral' },
-  ].map(c => `<div class="candidate-card">
-    <div class="candidate-avatar" style="background:var(--${c.bg}-pale);color:var(--${c.bg})">${c.init}</div>
-    <div class="candidate-info">
-      <div class="candidate-name">${c.n}</div>
-      <div class="candidate-career">${c.c} · ${c.role}</div>
-    </div>
-    <span class="status-pill status-${c.status}">${c.status === 'review' ? 'En revisión' : c.status === 'pending' ? 'Pendiente' : 'Aceptado'}</span>
-    <div class="candidate-actions">
-      <button class="btn btn-ghost btn-sm">Ver CV</button>
-      <button class="btn btn-primary btn-sm" onclick="showToast('success','Estado actualizado')">Gestionar</button>
-    </div>
-  </div>`).join('');
+async function viewCandidateCV(userIdOrName) {
+  if (!userIdOrName) return;
+  try {
+    let userId = userIdOrName;
+    if (typeof userId === 'string' && isNaN(parseInt(userId))) {
+      userId = 1; // Default to student ID 1 for mock data
+    }
+    const res = await fetch(`${API_URL}/cv/${userId}`);
+    const data = await res.json();
+    if (data.fileData) {
+      // Use fetch to convert data URI to blob
+      fetch(data.fileData)
+        .then(res => res.blob())
+        .then(blob => {
+          const fileURL = URL.createObjectURL(blob);
+          window.open(fileURL, '_blank');
+        });
+      showToast('success', 'Abriendo CV del candidato...');
+    } else {
+      showToast('info', 'El candidato no ha subido un CV.');
+    }
+  } catch (err) {
+    console.error('Error al ver CV:', err);
+    showToast('info', 'El candidato no ha subido un CV. (Sin conexión al servidor)');
+  }
+}
+
+async function updateCandidateStatus(idOrName, newStatus) {
+  if (!idOrName) return;
+  let isUpdated = false;
+
+  try {
+    if (!isNaN(parseInt(idOrName))) {
+      const res = await fetch(`${API_URL}/applications/${idOrName}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      const data = await res.json();
+      if (!data.error) {
+        isUpdated = true;
+      }
+    }
+  } catch (err) {
+    console.error('Error API, intentando fallback local', err);
+  }
+
+  if (!isUpdated && currentUser) {
+    // Fallback local
+    const compId = currentUser.company_id || 1;
+    let candidates = JSON.parse(localStorage.getItem('juva_company_apps_' + compId)) || [];
+    let modified = false;
+    candidates = candidates.map(c => {
+      if ((c.application_id && c.application_id == idOrName) || c.name === idOrName) {
+        c.status = newStatus;
+        modified = true;
+      }
+      return c;
+    });
+    if (modified) {
+      localStorage.setItem('juva_company_apps_' + compId, JSON.stringify(candidates));
+      isUpdated = true;
+    }
+  }
+
+  if (isUpdated) {
+    showToast('success', 'Estado del candidato actualizado');
+    loadCandidates(); // Recargar la tabla
+  } else {
+    showToast('error', 'Error al actualizar el estado');
+  }
 }
 
 // TOASTS
@@ -743,6 +1866,21 @@ window.addEventListener('scroll', () => { document.getElementById('navbar').clas
 // Inicializar la carga de datos reales
 loadJobsFromServer();
 
+// Restaurar sesión de UI si existe
+if (loggedIn && currentUser) {
+  document.getElementById('nav-auth-btns').classList.add('hide');
+  document.getElementById('nav-user-btns').classList.remove('hide');
+  
+  const navAvatar = document.querySelector('.nav-avatar');
+  if (navAvatar) {
+    navAvatar.textContent = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  }
+  
+  if (currentUser.role === 'company') showPage('company-dash');
+  else if (currentUser.role === 'admin') showPage('admin-dash');
+  else showPage('student-dash');
+}
+
 function handleUniversityChange(select) {
   const otherInput = document.getElementById('reg-student-university-other');
   if (select.value === 'Otra') {
@@ -755,8 +1893,41 @@ function handleUniversityChange(select) {
 // ========================
 // EDICIÓN DE PERFIL
 // ========================
+let tempAvatarDataUrl = null;
+
+function previewAvatar(event) {
+  const file = event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      tempAvatarDataUrl = e.target.result;
+      const preview = document.getElementById('edit-avatar-preview');
+      if (preview) {
+        preview.style.backgroundImage = `url(${tempAvatarDataUrl})`;
+        preview.textContent = '';
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
 function openEditProfileModal() {
   if (!currentUser) return;
+  
+  tempAvatarDataUrl = null;
+  const preview = document.getElementById('edit-avatar-preview');
+  if (preview) {
+    if (currentUser.avatar) {
+      preview.style.backgroundImage = `url(${currentUser.avatar})`;
+      preview.textContent = '';
+    } else {
+      preview.style.backgroundImage = 'none';
+      preview.textContent = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    }
+  }
+  const fileInput = document.getElementById('edit-avatar');
+  if (fileInput) fileInput.value = '';
+
   document.getElementById('edit-name').value = currentUser.name || '';
   document.getElementById('edit-career').value = currentUser.career || '';
   document.getElementById('edit-phone').value = currentUser.phone || '';
@@ -786,6 +1957,19 @@ async function saveProfile() {
   const age = ageVal ? parseInt(ageVal) : null;
   const address = document.getElementById('edit-address').value.trim();
   
+  if (phone && !/^\d{8}$/.test(phone)) {
+    showToast('error', 'El número telefónico es inválido. Debe tener exactamente 8 dígitos.');
+    return;
+  }
+  if (cedula && !/^\d{3}-\d{6}-\d{4}[A-Za-z]$/.test(cedula)) {
+    showToast('error', 'El formato de cédula es inválido (ej: 000-000000-0000A).');
+    return;
+  }
+  if (age !== null && age < 18) {
+    showToast('error', 'Debes ser mayor de 18 años.');
+    return;
+  }
+  
   try {
     const res = await fetch(`${API_URL}/users/${currentUser.id}/profile`, {
       method: 'PUT',
@@ -798,18 +1982,20 @@ async function saveProfile() {
         cedula,
         dob: dob || null,
         age,
-        address
+        address,
+        avatar: tempAvatarDataUrl || currentUser.avatar
       })
     });
     
     const data = await res.json();
     if (res.ok) {
-      currentUser = data.user;
+      currentUser = { ...data.user, avatar: tempAvatarDataUrl || currentUser.avatar };
+      sessionStorage.setItem('juva_currentUser', JSON.stringify(currentUser));
       
       // Update fallback if exists
       const userIndex = USERS.findIndex(u => u.id === currentUser.id);
       if (userIndex !== -1) {
-        USERS[userIndex] = { ...USERS[userIndex], ...data.user };
+        USERS[userIndex] = { ...USERS[userIndex], ...data.user, avatar: tempAvatarDataUrl || currentUser.avatar };
       }
       
       closeModal('edit-profile-modal');
@@ -821,5 +2007,337 @@ async function saveProfile() {
   } catch (err) {
     console.error(err);
     showToast('error', 'Error de conexión con el servidor');
+  }
+}
+
+// ========================
+// AGREGAR ITEMS AL CV
+// ========================
+let currentAddType = '';
+
+function openAddItemModal(type) {
+  currentAddType = type;
+  const title = document.getElementById('add-item-title');
+  const form = document.getElementById('add-item-form');
+  
+  if (type === 'experience') {
+    title.textContent = 'Agregar Experiencia';
+    form.innerHTML = `
+      <div class="form-group"><label>Cargo</label><input type="text" id="add-exp-title" placeholder="Ej: Desarrollador Web"></div>
+      <div class="form-group"><label>Empresa</label><input type="text" id="add-exp-company" placeholder="Ej: TechNica"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Fecha Inicio</label><input type="month" id="add-exp-start"></div>
+        <div class="form-group"><label>Fecha Fin</label><input type="month" id="add-exp-end"></div>
+      </div>
+      <div class="form-group"><label>Descripción</label><textarea id="add-exp-desc" placeholder="Tus responsabilidades..."></textarea></div>
+    `;
+  } else if (type === 'education') {
+    title.textContent = 'Agregar Educación';
+    form.innerHTML = `
+      <div class="form-group"><label>Título</label><input type="text" id="add-edu-title" placeholder="Ej: Ing. en Sistemas"></div>
+      <div class="form-group"><label>Institución</label><input type="text" id="add-edu-inst" placeholder="Ej: UNI"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Año Inicio</label><input type="number" id="add-edu-start" placeholder="2020"></div>
+        <div class="form-group"><label>Año Fin</label><input type="number" id="add-edu-end" placeholder="2025"></div>
+      </div>
+    `;
+  } else if (type === 'project') {
+    title.textContent = 'Agregar Proyecto';
+    form.innerHTML = `
+      <div class="form-group"><label>Nombre del Proyecto</label><input type="text" id="add-proj-title" placeholder="Ej: Sistema de inventario"></div>
+      <div class="form-group"><label>Tecnologías (separadas por coma)</label><input type="text" id="add-proj-tech" placeholder="Ej: React, Node.js, MySQL"></div>
+      <div class="form-group"><label>Enlace (Opcional)</label><input type="url" id="add-proj-url" placeholder="https://github.com/..."></div>
+      <div class="form-group"><label>Descripción</label><textarea id="add-proj-desc" placeholder="Breve descripción del proyecto..."></textarea></div>
+    `;
+  } else if (type === 'skill') {
+    title.textContent = 'Agregar Habilidad';
+    form.innerHTML = `
+      <div class="form-group"><label>Nombre de la Habilidad</label><input type="text" id="add-skill-title" placeholder="Ej: Liderazgo"></div>
+    `;
+  } else if (type === 'apply-education') {
+    title.textContent = 'Agregar Educación';
+    form.innerHTML = `
+      <div class="form-group"><label>Institución educativa *</label><input type="text" id="add-apply-edu-inst" placeholder="Ej: UNI"></div>
+      <div class="form-group"><label>Campo de estudio</label><input type="text" id="add-apply-edu-career" placeholder="Ej: Ing. en Sistemas"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Año Inicio</label><input type="number" id="add-apply-edu-start" placeholder="2020"></div>
+        <div class="form-group"><label>Año Fin</label><input type="number" id="add-apply-edu-end" placeholder="2025"></div>
+      </div>
+    `;
+  }
+  
+  openModal('add-item-modal');
+}
+
+function saveNewItem() {
+  if (currentAddType === 'experience') {
+    const title = document.getElementById('add-exp-title')?.value;
+    const company = document.getElementById('add-exp-company')?.value;
+    const start = document.getElementById('add-exp-start')?.value;
+    const end = document.getElementById('add-exp-end')?.value || 'Presente';
+    const desc = document.getElementById('add-exp-desc')?.value;
+    
+    if (!title || !company) return showToast('error', 'Llena los campos obligatorios');
+    
+    const html = `
+      <li>
+        <div class="timeline-header">
+          <div>
+            <div class="timeline-title">${title}</div>
+            <div class="timeline-sub">${company}</div>
+          </div>
+          <div class="timeline-date">${start} – ${end}</div>
+        </div>
+        <p style="font-size:13px;color:var(--text-mid)">${desc}</p>
+      </li>
+    `;
+    const list = document.querySelectorAll('.timeline')[0];
+    if (list) list.insertAdjacentHTML('afterbegin', html);
+    
+  } else if (currentAddType === 'education') {
+    const title = document.getElementById('add-edu-title')?.value;
+    const inst = document.getElementById('add-edu-inst')?.value;
+    const start = document.getElementById('add-edu-start')?.value;
+    const end = document.getElementById('add-edu-end')?.value;
+    
+    if (!title || !inst) return showToast('error', 'Llena los campos obligatorios');
+    
+    const html = `
+      <li>
+        <div class="timeline-header">
+          <div>
+            <div class="timeline-title">${title}</div>
+            <div class="timeline-sub">${inst}</div>
+          </div>
+          <div class="timeline-date">${start} – ${end}</div>
+        </div>
+      </li>
+    `;
+    const list = document.querySelectorAll('.timeline')[1];
+    if (list) list.insertAdjacentHTML('afterbegin', html);
+    
+  } else if (currentAddType === 'project') {
+    const title = document.getElementById('add-proj-title')?.value;
+    const tech = document.getElementById('add-proj-tech')?.value || '';
+    const url = document.getElementById('add-proj-url')?.value;
+    const desc = document.getElementById('add-proj-desc')?.value;
+    
+    if (!title) return showToast('error', 'El nombre del proyecto es obligatorio');
+    
+    const html = `
+      <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px; margin-bottom: 14px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-weight:600;font-size:14px;color:var(--navy)">${title}</div>
+            <div style="font-size:12px;color:var(--text-soft);margin-top:2px">${tech.split(',').map(t => t.trim()).join(' · ')}</div>
+          </div>
+          ${url ? `<a href="${url}" target="_blank" style="color:var(--blue);font-size:13px"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>` : ''}
+        </div>
+        ${desc ? `<p style="font-size:13px;color:var(--text-mid);margin-top:8px">${desc}</p>` : ''}
+      </div>
+    `;
+    const listCard = Array.from(document.querySelectorAll('.card-title')).find(el => el.textContent.includes('Proyectos'))?.parentElement.parentElement;
+    if (listCard) {
+      const container = listCard.querySelector('div:not(.card-header)');
+      if (container) container.insertAdjacentHTML('afterbegin', html);
+    }
+  } else if (currentAddType === 'skill') {
+    const title = document.getElementById('add-skill-title')?.value;
+    if (!title) return showToast('error', 'El nombre de la habilidad es obligatorio');
+    
+    const html = `<div class="skill-tag-edit">${title} <i class="fa-solid fa-xmark"></i></div>`;
+    const list = document.querySelector('.skills-cloud');
+    if (list) list.insertAdjacentHTML('beforeend', html);
+  } else if (currentAddType === 'apply-education') {
+    const inst = document.getElementById('add-apply-edu-inst')?.value;
+    const career = document.getElementById('add-apply-edu-career')?.value || '--';
+    const start = document.getElementById('add-apply-edu-start')?.value || '--';
+    const end = document.getElementById('add-apply-edu-end')?.value || '--';
+    
+    if (!inst) return showToast('error', 'La institución educativa es obligatoria');
+    
+    const innerHtml = `
+      <div style="font-size:14px; margin-bottom:4px;"><strong style="color:var(--text-soft); font-weight:500;">Institución educativa *</strong> <span>${inst}</span></div>
+      <div style="font-size:14px; margin-bottom:4px;"><strong style="color:var(--text-soft); font-weight:500;">Ciudad </strong> --</div>
+      <div style="font-size:14px; margin-bottom:4px;"><strong style="color:var(--text-soft); font-weight:500;">Título </strong> --</div>
+      <div style="font-size:14px; margin-bottom:4px;"><strong style="color:var(--text-soft); font-weight:500;">Campo de estudio </strong> <span>${career}</span></div>
+      <div style="font-size:14px;"><strong style="color:var(--text-soft); font-weight:500;">Fechas de asistencia </strong> ${start} – ${end}</div>
+      
+      <div style="display:flex; justify-content:space-between; margin-top:16px; border-top:1px solid #f1f5f9; padding-top:12px;">
+        <span style="font-size:12px; color:var(--text-soft);">Editado</span>
+        <div style="display:flex; gap:12px; font-size:13px; font-weight:600; color:var(--blue); cursor:pointer;">
+          <span onclick="this.closest('#apply-edu-list > div').style.display='none'; showToast('success', 'Educación eliminada');">Eliminar</span>
+          <span onclick="window.currentEditEduElement = this.closest('#apply-edu-list > div'); openAddItemModal('apply-education')">Editar</span>
+        </div>
+      </div>
+    `;
+
+    if (window.currentEditEduElement) {
+      window.currentEditEduElement.innerHTML = innerHtml;
+      window.currentEditEduElement = null; // reset
+      showToast('success', 'Educación actualizada');
+    } else {
+      const fullHtml = `<div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">${innerHtml}</div>`;
+      const list = document.getElementById('apply-edu-list');
+      if (list) list.insertAdjacentHTML('beforeend', fullHtml);
+      showToast('success', 'Educación guardada');
+    }
+    
+    closeModal('add-item-modal');
+    return;
+  }
+  
+  closeModal('add-item-modal');
+  showToast('success', 'Añadido exitosamente al CV');
+}
+
+async function handleCVUpload(input) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    
+    // Validar tamaño (5MB máx) para cuidar la base de datos
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('error', 'El archivo es muy pesado. Máximo 5MB.');
+      input.value = '';
+      return;
+    }
+
+    showToast('success', 'Preparando archivo...');
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const fileData = e.target.result;
+      const userId = currentUser ? currentUser.id : 1;
+      
+      try {
+        const response = await fetch('http://localhost:3000/api/upload-cv', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, filename: file.name, fileData })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          showToast('success', `¡CV "${file.name}" guardado en la base de datos!`);
+          const viewBtn = document.getElementById('view-cv-btn');
+          if(viewBtn) viewBtn.style.display = 'inline-block';
+        } else {
+          showToast('error', data.error || 'Error al guardar el CV');
+        }
+      } catch (error) {
+        console.error('Error subiendo CV:', error);
+        showToast('error', 'Error de conexión con el servidor');
+      }
+      
+      input.value = '';
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+async function downloadSavedCV() {
+  const userId = currentUser ? currentUser.id : 1;
+  showToast('success', 'Buscando CV en la base de datos...');
+  
+  try {
+    const response = await fetch(`http://localhost:3000/api/cv/${userId}`);
+    const data = await response.json();
+    
+    if (response.ok && data.fileData) {
+      const link = document.createElement('a');
+      link.href = data.fileData;
+      link.download = data.filename || 'Mi_CV_JuvaConnect.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('success', 'Descarga iniciada');
+    } else {
+      showToast('error', data.error || 'No se encontró tu CV');
+    }
+  } catch (error) {
+    console.error('Error descargando CV:', error);
+    showToast('error', 'Error de conexión con el servidor');
+  }
+}
+
+function updateSidebarBadges() {
+  const badgeApp = document.getElementById('badge-applications');
+  const badgeSaved = document.getElementById('badge-saved');
+  const badgeNotif = document.getElementById('badge-notifications');
+  
+  if (badgeApp) {
+    let appCount = 0;
+    const appRows = document.querySelectorAll('#tab-applications tbody tr');
+    // Si hay filas y no es la fila de "No tienes aplicaciones"
+    if (appRows.length > 0 && !appRows[0].textContent.includes('No tienes aplicaciones')) {
+      appCount = appRows.length;
+    }
+    badgeApp.textContent = appCount;
+    if (appCount === 0) {
+      badgeApp.parentElement.style.display = 'none';
+    } else {
+      badgeApp.parentElement.style.display = 'inline-block';
+    }
+  }
+  
+  if (badgeSaved) {
+    const savedCount = favorites ? favorites.size : 0;
+    badgeSaved.textContent = savedCount;
+    if (savedCount === 0) {
+      badgeSaved.parentElement.style.display = 'none';
+    } else {
+      badgeSaved.parentElement.style.display = 'inline-block';
+    }
+  }
+  
+  if (badgeNotif) {
+    // Simulamos 0 notificaciones reales por ahora
+    const notifCount = 0;
+    badgeNotif.textContent = notifCount;
+    if (notifCount === 0) {
+      badgeNotif.parentElement.style.display = 'none';
+    } else {
+      badgeNotif.parentElement.style.display = 'inline-block';
+    }
+  }
+}
+
+async function loadNotifications() {
+  if (!currentUser || currentUser.role !== 'student') return;
+  const notifList = document.querySelector('#tab-notifications .notif-list');
+  if (!notifList) return;
+
+  try {
+    const res = await fetch(`${API_URL}/users/${currentUser.id}/notifications`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.length === 0) {
+        notifList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-soft)">No tienes nuevas notificaciones.</div>';
+      } else {
+        notifList.innerHTML = data.map(n => `<li class="notif-item">
+          <div class="notif-icon" style="background:var(--${n.color}-pale)"><i class="fa-solid ${n.icon}" style="color:var(--${n.color})"></i></div>
+          <div class="notif-content">
+            <p>${n.message}</p>
+            <span>${new Date(n.created_at).toLocaleString()}</span>
+          </div>
+          ${!n.is_read ? '<div class="notif-dot"></div>' : ''}
+        </li>`).join('');
+      }
+      
+      // Actualizar badge del sidebar
+      const badgeNotif = document.getElementById('badge-notifications');
+      if (badgeNotif) {
+        const unreadCount = data.filter(n => !n.is_read).length;
+        badgeNotif.textContent = unreadCount;
+        if (unreadCount === 0) {
+          badgeNotif.parentElement.style.display = 'none';
+        } else {
+          badgeNotif.parentElement.style.display = 'inline-block';
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching notifications:', err);
   }
 }

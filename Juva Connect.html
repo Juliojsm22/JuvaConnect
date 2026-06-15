@@ -34,9 +34,9 @@
         onclick="openModal('auth-modal');switchAuthTab('register')">Registrarse</button>
     </div>
     <div class="nav-actions hide" id="nav-user-btns">
-      <button class="btn btn-ghost btn-sm" onclick="showPage('student-dash')"><i class="fa-solid fa-gauge"></i>
+      <button class="btn btn-ghost btn-sm" onclick="goToDashboard()"><i class="fa-solid fa-gauge"></i>
         Dashboard</button>
-      <div class="nav-avatar" onclick="showPage('student-dash')" title="Mi perfil">JP</div>
+      <div class="nav-avatar" onclick="goToDashboard()" title="Mi perfil">JP</div>
     </div>
   </nav>
 
@@ -206,6 +206,76 @@
       </div>
     </section>
 
+    <!-- PRICING SECTION -->
+    <section class="pricing-section" id="pricing-section">
+      <div class="section-header" style="text-align:center">
+        <div class="section-label">Planes para Empresas</div>
+        <h2 class="section-title">Elige el plan ideal para tu reclutamiento</h2>
+        <p class="section-sub">Membresías diseñadas para escalar junto con tu empresa</p>
+      </div>
+      <div class="pricing-grid">
+        <!-- Básica -->
+        <div class="pricing-card">
+          <div class="pricing-header">
+            <h3>Suscripción Básica</h3>
+            <div class="pricing-price">$5.00<span>/ mes</span></div>
+            <p>Diseñada para microempresas o negocios con contrataciones esporádicas.</p>
+          </div>
+          <div class="pricing-features">
+            <ul>
+              <li><i class="fa-solid fa-check"></i> Hasta 10 vacantes activas simultáneas</li>
+              <li><i class="fa-solid fa-check"></i> Flujo estándar de recepción de postulaciones</li>
+            </ul>
+          </div>
+          <div class="pricing-action" style="margin-top:auto;">
+            <button class="btn btn-ghost" style="width:100%" onclick="openModal('auth-modal');switchAuthTab('register')">Empezar con Básica</button>
+          </div>
+        </div>
+        
+        <!-- Plus -->
+        <div class="pricing-card popular">
+          <div class="pricing-badge">Más popular</div>
+          <div class="pricing-header">
+            <h3>Suscripción Plus</h3>
+            <div class="pricing-price">$10.00<span>/ mes</span></div>
+            <p>Orientada a empresas medianas en crecimiento.</p>
+          </div>
+          <div class="pricing-features">
+            <ul>
+              <li><i class="fa-solid fa-check"></i> Hasta 20 vacantes activas simultáneas</li>
+              <li><i class="fa-solid fa-check"></i> Insignia de "Empresa Verificada"</li>
+              <li><i class="fa-solid fa-check"></i> Mejores herramientas de filtrado de candidatos</li>
+              <li><i class="fa-solid fa-check"></i> Flujo estándar de recepción de postulaciones</li>
+            </ul>
+          </div>
+          <div class="pricing-action" style="margin-top:auto;">
+            <button class="btn btn-primary" style="width:100%" onclick="openModal('auth-modal');switchAuthTab('register')">Empezar con Plus</button>
+          </div>
+        </div>
+
+        <!-- Premium -->
+        <div class="pricing-card">
+          <div class="pricing-header">
+            <h3>Suscripción Premium</h3>
+            <div class="pricing-price">$20.00<span>/ mes</span></div>
+            <p>Desarrollada para corporativos con necesidades de reclutamiento masivo.</p>
+          </div>
+          <div class="pricing-features">
+            <ul>
+              <li><i class="fa-solid fa-check"></i> Hasta 50 vacantes activas simultáneas</li>
+              <li><i class="fa-solid fa-check"></i> Personalización avanzada del perfil empresarial</li>
+              <li><i class="fa-solid fa-check"></i> Vacantes destacadas en el feed público</li>
+              <li><i class="fa-solid fa-check"></i> Chat directo con los postulantes</li>
+              <li><i class="fa-solid fa-check"></i> Analíticas de rendimiento del proceso</li>
+            </ul>
+          </div>
+          <div class="pricing-action" style="margin-top:auto;">
+            <button class="btn btn-ghost" style="width:100%" onclick="openModal('auth-modal');switchAuthTab('register')">Empezar con Premium</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- FOOTER -->
     <footer class="footer">
       <div class="footer-grid">
@@ -231,7 +301,7 @@
           <ul>
             <li><a href="#">Publicar vacante</a></li>
             <li><a href="#">Gestión de candidatos</a></li>
-            <li><a href="#">Planes y precios</a></li>
+            <li><a href="#" onclick="showPage('landing');scrollToSection('#pricing-section'); return false;">Planes y precios</a></li>
             <li><a href="#">Panel empresa</a></li>
           </ul>
         </div>
@@ -247,7 +317,7 @@
       </div>
       <div class="footer-bottom">
         <span>© 2025 JuvaConnect. Todos los derechos reservados.</span>
-        <span>Hecho con ❤️ para universitarios de Nicaragua</span>
+        <span>Hecho por Juva Connect para universitarios de Nicaragua</span>
       </div>
     </footer>
   </div>
@@ -274,16 +344,16 @@
           <button class="sidebar-item" onclick="switchDashTab('jobs')"><i class="fa-solid fa-briefcase"></i> Explorar
             empleos</button>
           <button class="sidebar-item" onclick="switchDashTab('applications')"><i class="fa-solid fa-paper-plane"></i>
-            Mis aplicaciones <span class="sidebar-badge"><span class="badge badge-blue">3</span></span></button>
+            Mis aplicaciones <span class="sidebar-badge"><span class="badge badge-blue" id="badge-applications">3</span></span></button>
           <button class="sidebar-item" onclick="switchDashTab('saved')"><i class="fa-solid fa-heart"></i> Guardados
-            <span class="sidebar-badge"><span class="badge badge-coral">5</span></span></button>
+            <span class="sidebar-badge"><span class="badge badge-coral" id="badge-saved">5</span></span></button>
         </div>
         <div class="sidebar-section" style="margin-top:8px">
           <div class="sidebar-label">Mi perfil</div>
           <button class="sidebar-item" onclick="switchDashTab('profile')"><i class="fa-solid fa-user"></i> CV
             Digital</button>
           <button class="sidebar-item" onclick="switchDashTab('notifications')"><i class="fa-solid fa-bell"></i>
-            Notificaciones <span class="sidebar-badge"><span class="badge badge-coral">2</span></span></button>
+            Notificaciones <span class="sidebar-badge"><span class="badge badge-coral" id="badge-notifications">2</span></span></button>
         </div>
         <div style="margin-top:auto;padding:16px 24px;border-top:1px solid rgba(255,255,255,0.08);margin-top:40px">
           <button class="sidebar-item" onclick="logout()" style="color:rgba(255,84,73,0.8)"><i
@@ -383,7 +453,7 @@
                   <td><span class="tag tag-teal">Remoto</span></td>
                   <td><span class="status-pill status-review"><i class="fa-solid fa-circle" style="font-size:6px"></i>
                       En revisión</span></td>
-                  <td><button class="btn btn-ghost btn-sm">Ver</button></td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="viewJobDetails(1)">Ver</button></td>
                 </tr>
                 <tr>
                   <td>
@@ -396,7 +466,7 @@
                   <td><span class="tag tag-blue">Híbrido</span></td>
                   <td><span class="status-pill status-accepted"><i class="fa-solid fa-circle" style="font-size:6px"></i>
                       Aceptado</span></td>
-                  <td><button class="btn btn-ghost btn-sm">Ver</button></td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="viewJobDetails(2)">Ver</button></td>
                 </tr>
                 <tr>
                   <td>
@@ -409,7 +479,7 @@
                   <td><span class="tag tag-gray">Presencial</span></td>
                   <td><span class="status-pill status-pending"><i class="fa-solid fa-circle" style="font-size:6px"></i>
                       Pendiente</span></td>
-                  <td><button class="btn btn-ghost btn-sm">Ver</button></td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="viewJobDetails(3)">Ver</button></td>
                 </tr>
                 <tr>
                   <td>
@@ -422,7 +492,7 @@
                   <td><span class="tag tag-gray">Presencial</span></td>
                   <td><span class="status-pill status-rejected"><i class="fa-solid fa-circle" style="font-size:6px"></i>
                       Rechazado</span></td>
-                  <td><button class="btn btn-ghost btn-sm">Ver</button></td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="viewJobDetails(4)">Ver</button></td>
                 </tr>
               </tbody>
             </table>
@@ -431,12 +501,17 @@
 
         <!-- PROFILE TAB -->
         <div class="dash-tab" id="tab-profile">
-          <div class="dash-header" style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="dash-header" style="display:flex; flex-direction:row; justify-content:space-between; align-items:center; width:100%;">
             <div>
               <div class="dash-title">Mi CV Digital</div>
               <div class="dash-subtitle">Tu perfil profesional visible para las empresas</div>
             </div>
-            <button class="btn btn-ghost" onclick="openEditProfileModal()"><i class="fa-solid fa-pen"></i> Editar Perfil</button>
+            <div style="display:flex; gap:10px; align-items:center; margin-left: auto;">
+              <input type="file" id="cv-upload-input" style="opacity: 0; position: absolute; z-index: -1; width: 0; height: 0;" onchange="handleCVUpload(this)">
+              <button class="btn btn-primary" onclick="document.getElementById('cv-upload-input').click()"><i class="fa-solid fa-upload"></i> Subir CV</button>
+              <button class="btn btn-ghost" id="view-cv-btn" style="display: none;" onclick="downloadSavedCV()"><i class="fa-solid fa-download"></i> Ver CV Guardado</button>
+              <button class="btn btn-ghost" onclick="openEditProfileModal()"><i class="fa-solid fa-pen"></i> Editar Perfil</button>
+            </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px">
             <div>
@@ -463,7 +538,7 @@
               </div>
               <div class="card" style="margin-bottom:16px">
                 <div class="card-header">
-                  <div class="card-title">Habilidades</div><button class="btn btn-ghost btn-sm">+ Agregar</button>
+                  <div class="card-title">Habilidades</div><button class="btn btn-ghost btn-sm" onclick="openAddItemModal('skill')">+ Agregar</button>
                 </div>
                 <div class="skills-cloud">
                   <div class="skill-tag-edit">JavaScript <i class="fa-solid fa-xmark"></i></div>
@@ -475,40 +550,12 @@
                   <div class="skill-tag-edit">Git <i class="fa-solid fa-xmark"></i></div>
                 </div>
               </div>
-              <div class="card">
-                <div class="card-header">
-                  <div class="card-title">Completitud</div>
-                </div>
-                <div style="margin-bottom:8px;display:flex;justify-content:space-between;font-size:13px">
-                  <span style="color:var(--text-mid)">Perfil completado</span><span style="font-weight:600">85%</span>
-                </div>
-                <div style="height:8px;background:var(--surface2);border-radius:40px;overflow:hidden">
-                  <div
-                    style="height:100%;width:85%;background:linear-gradient(90deg,var(--blue),var(--teal));border-radius:40px">
-                  </div>
-                </div>
-                <div
-                  style="margin-top:16px;display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--text-mid)">
-                  <div style="display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check"
-                      style="color:var(--teal)"></i> Información básica</div>
-                  <div style="display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check"
-                      style="color:var(--teal)"></i> Experiencia laboral</div>
-                  <div style="display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check"
-                      style="color:var(--teal)"></i> Habilidades</div>
-                  <div style="display:flex;align-items:center;gap:8px"><i class="fa-regular fa-circle"
-                      style="color:var(--amber)"></i> Proyectos personales</div>
-                  <div style="display:flex;align-items:center;gap:8px"><i class="fa-regular fa-circle"
-                      style="color:var(--amber)"></i> Foto de perfil</div>
-                </div>
-                <button class="btn btn-primary" style="width:100%;margin-top:16px"
-                  onclick="showToast('success','¡CV exportado en PDF!')"><i class="fa-solid fa-file-pdf"></i> Exportar
-                  CV en PDF</button>
-              </div>
+
             </div>
             <div>
               <div class="card" style="margin-bottom:16px">
                 <div class="card-header">
-                  <div class="card-title">Experiencia</div><button class="btn btn-ghost btn-sm">+ Agregar</button>
+                  <div class="card-title">Experiencia</div><button class="btn btn-ghost btn-sm" onclick="openAddItemModal('experience')">+ Agregar</button>
                 </div>
                 <ul class="timeline">
                   <li>
@@ -537,7 +584,7 @@
               </div>
               <div class="card" style="margin-bottom:16px">
                 <div class="card-header">
-                  <div class="card-title">Educación</div><button class="btn btn-ghost btn-sm">+ Agregar</button>
+                  <div class="card-title">Educación</div><button class="btn btn-ghost btn-sm" onclick="openAddItemModal('education')">+ Agregar</button>
                 </div>
                 <ul class="timeline">
                   <li>
@@ -553,7 +600,7 @@
               </div>
               <div class="card">
                 <div class="card-header">
-                  <div class="card-title">Proyectos</div><button class="btn btn-ghost btn-sm">+ Agregar</button>
+                  <div class="card-title">Proyectos</div><button class="btn btn-ghost btn-sm" onclick="openAddItemModal('project')">+ Agregar</button>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:14px">
                   <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
@@ -637,8 +684,28 @@
 
         <!-- JOBS TAB -->
         <div class="dash-tab" id="tab-jobs">
-          <div class="dash-header">
+          <div class="dash-header" style="flex-direction: column; align-items: stretch; gap: 16px;">
             <div class="dash-title">Explorar Empleos</div>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+              <div class="search-bar" style="flex: 1; min-width: 200px;">
+                <i class="fa-solid fa-search"></i>
+                <input type="text" id="dash-search-input" placeholder="Buscar por cargo, empresa o palabra clave..." onkeyup="filterDashJobs()">
+              </div>
+              <select id="dash-filter-type" class="form-group" style="margin-bottom: 0; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; width: 160px;" onchange="filterDashJobs()">
+                <option value="all">Cualquier modalidad</option>
+                <option value="Remoto">Remoto</option>
+                <option value="Híbrido">Híbrido</option>
+                <option value="Presencial">Presencial</option>
+              </select>
+              <select id="dash-filter-cat" class="form-group" style="margin-bottom: 0; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; width: 160px;" onchange="filterDashJobs()">
+                <option value="all">Cualquier categoría</option>
+                <option value="tech">Tecnología</option>
+                <option value="design">Diseño</option>
+                <option value="finance">Finanzas</option>
+                <option value="marketing">Marketing</option>
+                <option value="admin">Administración</option>
+              </select>
+            </div>
           </div>
           <div class="jobs-grid" id="dash-jobs-grid"></div>
         </div>
@@ -675,9 +742,11 @@
           <button class="sidebar-item" onclick="switchCompanyTab('vacancies')"><i class="fa-solid fa-list"></i> Mis
             vacantes</button>
           <button class="sidebar-item" onclick="switchCompanyTab('candidates')"><i class="fa-solid fa-users"></i>
-            Candidatos <span class="sidebar-badge"><span class="badge badge-coral">12</span></span></button>
+            Candidatos <span class="sidebar-badge"><span id="badge-company-candidates" class="badge badge-coral" style="display:none">0</span></span></button>
           <button class="sidebar-item" onclick="switchCompanyTab('new-vacancy')"><i class="fa-solid fa-plus-circle"></i>
             Nueva vacante</button>
+          <button class="sidebar-item" onclick="switchCompanyTab('company-profile')"><i class="fa-solid fa-building"></i>
+            Perfil Digital</button>
         </div>
         <div style="padding:16px 24px;border-top:1px solid rgba(255,255,255,0.08);margin-top:40px">
           <button class="sidebar-item" onclick="logout()" style="color:rgba(255,84,73,0.8)"><i
@@ -743,6 +812,98 @@
           </div>
         </div>
 
+        <!-- COMPANY PROFILE -->
+        <div class="dash-tab" id="tab-company-profile">
+          <div class="dash-header">
+            <div class="dash-title">Perfil Digital de Empresa</div>
+            <div class="dash-subtitle">Actualiza la información pública visible para los candidatos</div>
+          </div>
+          <div class="card">
+            <div class="form-row">
+              <div class="form-group"><label>Nombre de la Empresa</label><input type="text" id="edit-comp-name" placeholder="TechNica Labs"></div>
+              <div class="form-group"><label>Número RUC</label><input type="text" id="edit-comp-ruc" placeholder="J0000000000"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Teléfono</label><input type="text" id="edit-comp-phone" placeholder="+505 8888 8888"></div>
+              <div class="form-group"><label>Dirección principal</label><input type="text" id="edit-comp-location" placeholder="Managua, Nicaragua"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Sitio Web</label><input type="url" id="edit-comp-website" placeholder="https://www.technica.com"></div>
+              <div class="form-group"><label>Sector / Industria</label><input type="text" id="edit-comp-sector" placeholder="Tecnología"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Año de Fundación</label><input type="number" id="edit-comp-founded" placeholder="2010"></div>
+              <div class="form-group"><label>Tamaño de Empresa</label>
+                <select id="edit-comp-size" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px;">
+                  <option value="">Seleccionar tamaño...</option>
+                  <option value="1-10">1 a 10 empleados</option>
+                  <option value="11-50">11 a 50 empleados</option>
+                  <option value="51-200">51 a 200 empleados</option>
+                  <option value="200+">Más de 200 empleados</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label>Logo de la Empresa</label>
+                <div id="edit-comp-logo-preview" style="width:100px; height:100px; border-radius:8px; border:1px dashed var(--border); margin-bottom:10px; background-size:cover; background-position:center; display:flex; align-items:center; justify-content:center; color:var(--text-soft); font-size:12px;">Sin Logo</div>
+                <input type="file" id="edit-comp-logo" accept="image/*" onchange="previewCompanyImage(event, 'edit-comp-logo-preview', 'logo')" style="font-size:13px;">
+              </div>
+              <div class="form-group">
+                <label>Foto de Portada (Banner)</label>
+                <div id="edit-comp-banner-preview" style="width:100%; height:100px; border-radius:8px; border:1px dashed var(--border); margin-bottom:10px; background-size:cover; background-position:center; display:flex; align-items:center; justify-content:center; color:var(--text-soft); font-size:12px;">Sin Banner</div>
+                <input type="file" id="edit-comp-banner" accept="image/*" onchange="previewCompanyImage(event, 'edit-comp-banner-preview', 'banner')" style="font-size:13px;">
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label>Beneficios Ofrecidos (separados por coma)</label>
+              <input type="text" id="edit-comp-benefits" placeholder="Seguro médico, Trabajo Remoto, Bonos anuales...">
+            </div>
+            
+            <div class="form-group">
+              <label>Descripción / Misión</label>
+              <textarea id="edit-comp-desc" placeholder="Breve descripción de la empresa..." style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; resize:vertical; min-height:80px; outline:none; font-family:'Inter', sans-serif;"></textarea>
+            </div>
+            
+            <h4 style="margin-top:20px;margin-bottom:10px;">Redes Sociales y Video</h4>
+            <div class="form-row">
+              <div class="form-group"><label>Facebook</label><input type="url" id="edit-comp-facebook" placeholder="https://facebook.com/technica"></div>
+              <div class="form-group"><label>Twitter / X</label><input type="url" id="edit-comp-twitter" placeholder="https://twitter.com/technica"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Instagram</label><input type="url" id="edit-comp-instagram" placeholder="https://instagram.com/technica"></div>
+              <div class="form-group"><label>Video Corporativo (YouTube/Vimeo)</label><input type="url" id="edit-comp-video" placeholder="https://youtube.com/watch?v=..."></div>
+            </div>
+            
+            <h4 style="margin-top:20px;margin-bottom:10px;">Persona de Contacto (RRHH)</h4>
+            <div class="form-row">
+              <div class="form-group"><label>Nombre del Reclutador</label><input type="text" id="edit-comp-contact-name" placeholder="Juan Pérez"></div>
+              <div class="form-group"><label>Correo de Contacto</label><input type="email" id="edit-comp-contact-email" placeholder="rrhh@technica.com"></div>
+            </div>
+            
+            <h4 style="margin-top:20px;margin-bottom:10px;">Galería de Fotos (Opcional)</h4>
+            <div class="form-row">
+              <div class="form-group">
+                <div id="edit-comp-gal1-preview" style="width:100%; height:80px; border-radius:8px; border:1px dashed var(--border); margin-bottom:10px; background-size:cover; background-position:center; display:flex; align-items:center; justify-content:center; color:var(--text-soft); font-size:12px;">Foto 1</div>
+                <input type="file" id="edit-comp-gal1" accept="image/*" onchange="previewCompanyImage(event, 'edit-comp-gal1-preview', 'gal1')" style="font-size:12px;width:100%">
+              </div>
+              <div class="form-group">
+                <div id="edit-comp-gal2-preview" style="width:100%; height:80px; border-radius:8px; border:1px dashed var(--border); margin-bottom:10px; background-size:cover; background-position:center; display:flex; align-items:center; justify-content:center; color:var(--text-soft); font-size:12px;">Foto 2</div>
+                <input type="file" id="edit-comp-gal2" accept="image/*" onchange="previewCompanyImage(event, 'edit-comp-gal2-preview', 'gal2')" style="font-size:12px;width:100%">
+              </div>
+              <div class="form-group">
+                <div id="edit-comp-gal3-preview" style="width:100%; height:80px; border-radius:8px; border:1px dashed var(--border); margin-bottom:10px; background-size:cover; background-position:center; display:flex; align-items:center; justify-content:center; color:var(--text-soft); font-size:12px;">Foto 3</div>
+                <input type="file" id="edit-comp-gal3" accept="image/*" onchange="previewCompanyImage(event, 'edit-comp-gal3-preview', 'gal3')" style="font-size:12px;width:100%">
+              </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+              <button class="btn btn-primary" onclick="saveCompanyProfile()"><i class="fa-solid fa-save"></i> Guardar Cambios</button>
+            </div>
+          </div>
+        </div>
+
         <!-- VACANCIES -->
         <div class="dash-tab" id="tab-vacancies">
           <div class="dash-header">
@@ -760,11 +921,11 @@
           </div>
           <div class="card">
             <div class="search-filters" style="margin-bottom:16px">
-              <button class="filter-chip active">Todos (47)</button>
-              <button class="filter-chip">Pendientes (20)</button>
-              <button class="filter-chip">En revisión (15)</button>
-              <button class="filter-chip">Aceptados (8)</button>
-              <button class="filter-chip">Rechazados (4)</button>
+              <button id="chip-todos" class="filter-chip active">Todos (0)</button>
+              <button id="chip-pending" class="filter-chip">Pendientes (0)</button>
+              <button id="chip-review" class="filter-chip">En revisión (0)</button>
+              <button id="chip-accepted" class="filter-chip">Aceptados (0)</button>
+              <button id="chip-rejected" class="filter-chip">Rechazados (0)</button>
             </div>
             <table class="data-table">
               <thead>
@@ -880,7 +1041,7 @@
             <div style="display:flex;gap:12px;margin-top:8px">
               <button class="btn btn-primary" onclick="createJob()"><i
                   class="fa-solid fa-paper-plane"></i> Publicar vacante</button>
-              <button class="btn btn-ghost">Guardar borrador</button>
+              <button class="btn btn-ghost" onclick="saveDraftJob()">Guardar borrador</button>
             </div>
           </div>
         </div>
@@ -1175,7 +1336,8 @@
           <div class="modal-company-logo">💻</div>
           <div class="modal-company-info">
             <h2>Desarrollador Frontend Jr.</h2>
-            <p>TechNica Labs · Managua, Nicaragua</p>
+            <p>TechNica Labs — Managua, Nicaragua</p>
+            <button id="job-modal-company-btn" class="btn btn-outline" style="padding:4px 12px; font-size:12px; margin-top:8px; border-radius:20px;" onclick="viewCompanyProfile()">🏢 Ver perfil de la empresa</button>
           </div>
         </div>
         <button class="modal-close" onclick="closeModal('job-modal')"><i class="fa-solid fa-xmark"></i></button>
@@ -1226,11 +1388,192 @@
           <div style="font-size:13px;color:var(--text-soft)">Publicado hace 3 días · 12 candidatos</div>
         </div>
         <div style="display:flex;gap:10px">
-          <button class="btn btn-ghost" onclick="closeModal('job-modal')"><i class="fa-regular fa-heart"></i>
+          <button class="btn btn-ghost" onclick="toggleFavFromModal(event)"><i class="fa-regular fa-heart"></i>
             Guardar</button>
-          <button class="btn btn-primary" onclick="applyJob()"><i class="fa-solid fa-paper-plane"></i> Aplicar
+          <button class="btn btn-primary" onclick="openApplyModal()"><i class="fa-solid fa-paper-plane"></i> Aplicar
             ahora</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== APPLY JOB MODAL ===== -->
+  <div class="modal-overlay" id="apply-modal">
+    <div class="modal" style="max-width: 600px; width: 100%; padding: 0;">
+      <!-- CABECERA DEL MODAL -->
+      <div class="modal-header" style="padding: 20px 24px 16px; border-bottom: none;">
+        <div>
+          <h2 style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--navy)">Solicitar empleo en <span id="apply-job-company">Empresa</span></h2>
+          <p style="color:var(--text-soft);font-size:13px;margin-top:4px" id="apply-job-title">Cargando...</p>
+        </div>
+        <button class="modal-close" onclick="closeModal('apply-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- BARRA DE PROGRESO -->
+      <div style="padding: 0 24px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-soft); margin-bottom:8px; font-weight:600;">
+          <span id="apply-step-label">Información de contacto</span>
+          <span id="apply-progress-text">20%</span>
+        </div>
+        <div style="width:100%; height:4px; background:#e2e8f0; border-radius:2px; overflow:hidden;">
+          <div id="apply-progress-bar" style="width:20%; height:100%; background:var(--blue); transition:width 0.3s ease;"></div>
+        </div>
+      </div>
+
+      <div class="modal-body" style="padding: 24px; min-height: 350px; max-height: 50vh; overflow-y: auto; overflow-x: hidden;">
+        
+        <!-- PASO 1: INFORMACIÓN DE CONTACTO -->
+        <div id="apply-step-1" class="apply-step-container">
+          <h3 style="font-size:16px; font-weight:600; margin-bottom:16px; color:var(--navy);">Información de contacto</h3>
+          <div class="form-row" style="display:flex; gap:16px; margin-bottom:16px;">
+            <div class="form-group" style="flex:1;">
+              <label>Nombres *</label>
+              <input type="text" id="apply-fn" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;" required>
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>Apellidos *</label>
+              <input type="text" id="apply-ln" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;" required>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:16px;">
+            <label>Código del país *</label>
+            <select id="apply-country-code" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none; background:#fff;">
+              <option value="+505">Nicaragua (+505)</option>
+              <option value="+506">Costa Rica (+506)</option>
+              <option value="+504">Honduras (+504)</option>
+              <option value="+503">El Salvador (+503)</option>
+              <option value="+502">Guatemala (+502)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:16px;">
+            <label>Número de teléfono celular *</label>
+            <input type="tel" id="apply-phone" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;" required>
+          </div>
+          <div class="form-group" style="margin-bottom:16px;">
+            <label>Correo electrónico *</label>
+            <input type="email" id="apply-email" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;" required>
+          </div>
+          <div class="form-group">
+            <label>Ubicación (Ciudad) *</label>
+            <input type="text" id="apply-city" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;" value="Managua, Nicaragua" required>
+          </div>
+        </div>
+
+        <!-- PASO 2: CURRÍCULUM -->
+        <div id="apply-step-2" class="apply-step-container hide">
+          <h3 style="font-size:16px; font-weight:600; margin-bottom:8px; color:var(--navy);">Currículum</h3>
+          <p style="font-size:13px; color:var(--text-soft); margin-bottom:20px;">Asegúrate de incluir un currículum actualizado</p>
+          
+          <div style="border: 2px dashed #e2e8f0; border-radius: 8px; padding: 30px; text-align: center; background: #f8fafc; transition: all 0.2s;" id="apply-cv-dropzone">
+            <i class="fa-solid fa-file-pdf" style="font-size:32px; color:var(--blue); margin-bottom:12px;"></i>
+            <div style="font-size:14px; color:var(--navy); font-weight:600; margin-bottom:4px;">Cargar currículum</div>
+            <div style="font-size:12px; color:var(--text-soft); margin-bottom:16px;">DOC, DOCX, PDF (Máx. 2 MB)</div>
+            <input type="file" id="apply-cv-file" accept=".pdf,.doc,.docx" style="display:none;" onchange="updateFileName(this, 'apply-cv-filename')">
+            <button class="btn btn-ghost btn-sm" style="border: 1px solid var(--blue); color: var(--blue);" onclick="document.getElementById('apply-cv-file').click()">Explorar archivos</button>
+            <div id="apply-cv-filename" style="margin-top:12px; font-size:13px; font-weight:600; color:var(--teal);"></div>
+          </div>
+          <div style="margin-top:16px; display:flex; align-items:center; gap:8px; padding: 12px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+            <i class="fa-solid fa-circle-check" style="color: #16a34a;"></i>
+            <span style="font-size:13px; color: #166534;">O utilizar mi CV Digital de JuvaConnect.</span>
+          </div>
+        </div>
+
+        <!-- PASO 3: CARTA DE PRESENTACIÓN -->
+        <div id="apply-step-3" class="apply-step-container hide">
+          <h3 style="font-size:16px; font-weight:600; margin-bottom:8px; color:var(--navy);">Carta de presentación</h3>
+          <p style="font-size:13px; color:var(--text-soft); margin-bottom:20px;">Asegúrate de incluir una carta de presentación actualizada</p>
+          
+          <div style="border: 2px dashed #e2e8f0; border-radius: 8px; padding: 30px; text-align: center; background: #f8fafc; margin-bottom: 20px;">
+            <i class="fa-solid fa-file-lines" style="font-size:32px; color:var(--blue); margin-bottom:12px;"></i>
+            <div style="font-size:14px; color:var(--navy); font-weight:600; margin-bottom:4px;">Cargar carta de presentación</div>
+            <div style="font-size:12px; color:var(--text-soft); margin-bottom:16px;">DOC, DOCX, PDF (Máx. 512 KB)</div>
+            <input type="file" id="apply-cl-file" accept=".pdf,.doc,.docx" style="display:none;" onchange="updateFileName(this, 'apply-cl-filename')">
+            <button class="btn btn-ghost btn-sm" style="border: 1px solid var(--blue); color: var(--blue);" onclick="document.getElementById('apply-cl-file').click()">Explorar archivos</button>
+            <div id="apply-cl-filename" style="margin-top:12px; font-size:13px; font-weight:600; color:var(--teal);"></div>
+          </div>
+          
+          <div style="text-align:center; font-size:13px; color:var(--text-soft); margin-bottom:20px;">- O escríbela aquí -</div>
+          
+          <textarea id="apply-cover-letter" placeholder="Hola, me gustaría aplicar a esta vacante porque..." style="width:100%; min-height:120px; padding:12px; border:1px solid #e2e8f0; border-radius:8px; font-family:'Inter',sans-serif; font-size:14px; outline:none; resize:vertical;"></textarea>
+        </div>
+
+        <!-- PASO 4: EXPERIENCIA LABORAL -->
+        <div id="apply-step-4" class="apply-step-container hide">
+          <h3 style="font-size:16px; font-weight:600; margin-bottom:16px; color:var(--navy);">Experiencia laboral</h3>
+          
+          <div class="form-group" style="margin-bottom:16px;">
+            <label>Título del puesto *</label>
+            <input type="text" id="apply-exp-title" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;" required>
+          </div>
+          <div class="form-group" style="margin-bottom:16px;">
+            <label>Empresa *</label>
+            <input type="text" id="apply-exp-company" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;" required>
+          </div>
+          <div class="form-group" style="margin-bottom:16px;">
+            <label>Fechas de empleo *</label>
+            <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+              <input type="checkbox" id="apply-exp-current" checked onchange="toggleEndDate()">
+              <span style="font-size:13px;">Trabajo aquí actualmente</span>
+            </div>
+            <div style="display:flex; gap:16px; margin-top:12px;">
+              <div style="flex:1;">
+                <label style="font-size:12px; color:var(--text-soft);">Desde *</label>
+                <div style="display:flex; gap:8px;">
+                  <select style="width:50%; padding:8px; border:1px solid #e2e8f0; border-radius:8px; outline:none; background:#fff;"><option>Mes</option><option>Ene</option></select>
+                  <select style="width:50%; padding:8px; border:1px solid #e2e8f0; border-radius:8px; outline:none; background:#fff;"><option>Año</option><option>2023</option></select>
+                </div>
+              </div>
+              <div style="flex:1; opacity:0.5; pointer-events:none;" id="apply-exp-to-container">
+                <label style="font-size:12px; color:var(--text-soft);">Hasta *</label>
+                <div style="display:flex; gap:8px;">
+                  <select style="width:50%; padding:8px; border:1px solid #e2e8f0; border-radius:8px; outline:none; background:#f8fafc;"><option>Mes</option></select>
+                  <select style="width:50%; padding:8px; border:1px solid #e2e8f0; border-radius:8px; outline:none; background:#f8fafc;"><option>Año</option></select>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:16px;">
+            <label>Ciudad</label>
+            <input type="text" id="apply-exp-city" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;">
+          </div>
+          <div class="form-group">
+            <label>Descripción</label>
+            <textarea id="apply-exp-desc" style="width:100%; min-height:80px; padding:12px; border:1px solid #e2e8f0; border-radius:8px; font-family:'Inter',sans-serif; font-size:14px; outline:none; resize:vertical;"></textarea>
+            <div style="text-align:right; font-size:11px; color:var(--text-soft); margin-top:4px;">0/2000</div>
+          </div>
+        </div>
+
+        <!-- PASO 5: EDUCACIÓN -->
+        <div id="apply-step-5" class="apply-step-container hide">
+          <h3 style="font-size:16px; font-weight:600; margin-bottom:16px; color:var(--navy);">Educación</h3>
+          
+          <div id="apply-edu-list">
+            <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+              <div style="font-size:14px; margin-bottom:4px;"><strong style="color:var(--text-soft); font-weight:500;">Institución educativa *</strong> <span id="apply-edu-school">Universidad Nacional de Ingeniería</span></div>
+              <div style="font-size:14px; margin-bottom:4px;"><strong style="color:var(--text-soft); font-weight:500;">Ciudad </strong> --</div>
+              <div style="font-size:14px; margin-bottom:4px;"><strong style="color:var(--text-soft); font-weight:500;">Título </strong> --</div>
+              <div style="font-size:14px; margin-bottom:4px;"><strong style="color:var(--text-soft); font-weight:500;">Campo de estudio </strong> <span id="apply-edu-career">Ingeniería en computación</span></div>
+              <div style="font-size:14px;"><strong style="color:var(--text-soft); font-weight:500;">Fechas de asistencia </strong> ene 2023 – actualidad</div>
+              
+              <div style="display:flex; justify-content:space-between; margin-top:16px; border-top:1px solid #f1f5f9; padding-top:12px;">
+                <span style="font-size:12px; color:var(--text-soft);">1 de 1</span>
+                <div style="display:flex; gap:12px; font-size:13px; font-weight:600; color:var(--blue); cursor:pointer;">
+                  <span onclick="this.closest('#apply-edu-list > div').style.display='none'; showToast('success', 'Educación eliminada');">Eliminar</span>
+                  <span onclick="window.currentEditEduElement = this.closest('#apply-edu-list > div'); openAddItemModal('apply-education')">Editar</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <button class="btn btn-ghost btn-sm" style="color:var(--blue); font-weight:600; padding:0;" onclick="window.currentEditEduElement = null; openAddItemModal('apply-education')"><i class="fa-solid fa-plus"></i> Agregar más</button>
+        </div>
+
+      </div>
+
+      <!-- FOOTER -->
+      <div class="modal-footer" style="padding: 16px 24px 20px; border-top: 1px solid #f1f5f9; display:flex; justify-content:flex-end; gap:10px;">
+        <button id="apply-btn-back" class="btn btn-ghost hide" onclick="prevApplyStep()">Volver</button>
+        <button id="apply-btn-next" class="btn btn-primary" onclick="nextApplyStep()">Siguiente</button>
       </div>
     </div>
   </div>
@@ -1283,6 +1626,16 @@
             <label>Nombre de la Empresa</label>
             <input type="text" placeholder="TechNica Labs" id="reg-company-name">
           </div>
+
+          <div class="form-row company-fields hide">
+            <div class="form-group"><label>Número RUC</label><input type="text" placeholder="J0000000000000" id="reg-company-ruc"></div>
+            <div class="form-group"><label>Teléfono de la Empresa</label><input type="tel" placeholder="+505 8888 8888" id="reg-company-phone"></div>
+          </div>
+
+          <div class="form-row company-fields hide">
+            <div class="form-group"><label>Dirección</label><input type="text" placeholder="Managua, NI" id="reg-company-address"></div>
+            <div class="form-group"><label>Sitio Web</label><input type="url" placeholder="https://www.empresa.com" id="reg-company-website"></div>
+          </div>
           
           <div class="form-row">
             <div class="form-group"><label>Correo electrónico</label><input type="email" placeholder="tu@email.com" id="reg-email"></div>
@@ -1329,6 +1682,16 @@
             <input type="text" placeholder="Tecnología" id="reg-company-sector">
           </div>
           
+          <div class="form-row company-fields hide">
+            <div class="form-group"><label>Logo de la empresa</label><input type="file" accept="image/*" id="reg-company-logo"></div>
+            <div class="form-group"><label>Año de fundación</label><input type="number" placeholder="Ej: 2010" min="1800" max="2030" id="reg-company-founded"></div>
+          </div>
+          
+          <div class="form-group company-fields hide">
+            <label>Descripción de la empresa</label>
+            <textarea placeholder="Breve descripción de lo que hacen, misión y visión..." id="reg-company-desc" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; resize:vertical; min-height:80px; outline:none; font-family:'Inter', sans-serif;"></textarea>
+          </div>
+          
           <div class="form-row">
             <div class="form-group"><label>Contraseña</label><input type="password" placeholder="••••••••" id="reg-password"></div>
             <div class="form-group"><label>Confirmar contraseña</label><input type="password" placeholder="••••••••" id="reg-password-confirm">
@@ -1343,29 +1706,121 @@
 
   <!-- ===== EDIT PROFILE MODAL ===== -->
   <div class="modal-overlay" id="edit-profile-modal">
-    <div class="modal">
+    <div class="modal" style="max-width:600px;">
       <div class="modal-header">
-        <div>
-          <h2 style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:var(--navy)">Editar Perfil</h2>
-          <p style="color:var(--text-soft);font-size:13px;margin-top:4px">Actualiza tu información personal</p>
-        </div>
+        <h2>Editar Perfil Personal</h2>
         <button class="modal-close" onclick="closeModal('edit-profile-modal')"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="modal-body">
         <div class="form-row">
+          <div class="form-group" style="text-align:center;">
+            <label>Foto de Perfil</label>
+            <div id="edit-avatar-preview" style="width:80px;height:80px;border-radius:50%;background:var(--blue-pale);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;color:var(--blue);font-weight:600;font-size:24px;overflow:hidden;background-size:cover;background-position:center;">
+              JS
+            </div>
+            <input type="file" id="edit-avatar" accept="image/*" onchange="previewAvatar(event)">
+          </div>
+        </div>
+        <div class="form-row">
           <div class="form-group"><label>Nombre Completo</label><input type="text" id="edit-name"></div>
-          <div class="form-group"><label>Carrera</label><input type="text" id="edit-career"></div>
+          <div class="form-group"><label>Carrera Universitaria</label><input type="text" id="edit-career"></div>
         </div>
         <div class="form-row">
           <div class="form-group"><label>Teléfono</label><input type="tel" id="edit-phone"></div>
           <div class="form-group"><label>Cédula</label><input type="text" id="edit-cedula"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Fecha de Nacimiento</label><input type="date" id="edit-dob"></div>
-          <div class="form-group"><label>Edad</label><input type="number" id="edit-age" min="15" max="100"></div>
+          <div class="form-group"><label>Fecha de Nacimiento</label><input type="date" id="edit-dob" onchange="calculateAge()"></div>
+          <div class="form-group"><label>Edad</label><input type="number" id="edit-age" readonly style="background:#f9fafb;"></div>
         </div>
         <div class="form-group"><label>Dirección</label><input type="text" id="edit-address"></div>
-        <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="saveProfile()"><i class="fa-solid fa-floppy-disk"></i> Guardar Cambios</button>
+      </div>
+      <div class="modal-footer" style="padding:15px 25px; border-top:1px solid var(--border); display:flex; justify-content:flex-end;">
+        <button class="btn btn-outline" style="margin-right:10px;" onclick="closeModal('edit-profile-modal')">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveUserProfile()">Guardar Cambios</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PUBLIC COMPANY PROFILE MODAL ===== -->
+  <div class="modal-overlay" id="public-company-modal">
+    <div class="modal" style="max-width:800px; padding:0; overflow:hidden;">
+      <button class="modal-close" onclick="closeModal('public-company-modal')" style="position:absolute; top:15px; right:15px; z-index:10; background:rgba(255,255,255,0.8); border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      
+      <!-- Banner & Logo -->
+      <div id="pc-banner" style="width:100%; height:180px; background:linear-gradient(135deg, var(--blue) 0%, #1e3a8a 100%); background-size:cover; background-position:center; position:relative;"></div>
+      
+      <div style="padding:0 30px 30px 30px; position:relative;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:-50px; margin-bottom:20px;">
+          <div id="pc-logo" style="width:100px; height:100px; border-radius:12px; background:white; border:4px solid white; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); display:flex; align-items:center; justify-content:center; font-size:40px; font-weight:bold; color:var(--blue); overflow:hidden; background-size:cover; background-position:center; z-index:2;">
+            🏢
+          </div>
+          <div style="display:flex; gap:10px;" id="pc-social-links">
+            <!-- Social links populated here -->
+          </div>
+        </div>
+
+        <div style="margin-bottom:25px;">
+          <h2 id="pc-name" style="font-size:28px; margin-bottom:5px;">Nombre de la Empresa</h2>
+          <p id="pc-location-sector" style="color:var(--text-soft); font-size:15px;"><i class="fa-solid fa-location-dot"></i> Ubicación • Sector</p>
+        </div>
+
+        <div class="form-row" style="margin-bottom:25px;">
+          <div class="form-group" style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border);">
+            <div style="font-size:12px; color:var(--text-soft); margin-bottom:5px;">Tamaño de Empresa</div>
+            <div style="font-weight:600; color:var(--text);" id="pc-size">11-50 Empleados</div>
+          </div>
+          <div class="form-group" style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border);">
+            <div style="font-size:12px; color:var(--text-soft); margin-bottom:5px;">Año de Fundación</div>
+            <div style="font-weight:600; color:var(--text);" id="pc-founded">2010</div>
+          </div>
+          <div class="form-group" style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border);">
+            <div style="font-size:12px; color:var(--text-soft); margin-bottom:5px;">Sitio Web</div>
+            <div style="font-weight:600; color:var(--blue);" id="pc-website"><a href="#" target="_blank" style="color:inherit;text-decoration:none;">Visitar web <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px;"></i></a></div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:25px;">
+          <h3 style="margin-bottom:10px; font-size:18px;">Sobre Nosotros</h3>
+          <p id="pc-desc" style="color:var(--text-soft); line-height:1.6;">Descripción de la empresa no disponible.</p>
+        </div>
+
+        <div id="pc-benefits-container" style="margin-bottom:25px; display:none;">
+          <h3 style="margin-bottom:10px; font-size:18px;">Beneficios</h3>
+          <div id="pc-benefits" class="modal-tags">
+            <!-- Benefits populated here -->
+          </div>
+        </div>
+
+        <div id="pc-gallery-container" style="margin-bottom:10px; display:none;">
+          <h3 style="margin-bottom:10px; font-size:18px;">Nuestra Oficina y Equipo</h3>
+          <div id="pc-gallery" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;">
+            <!-- Images populated here -->
+          </div>
+        </div>
+
+        <div id="pc-video-container" style="margin-top:20px; display:none;">
+          <a id="pc-video" href="#" target="_blank" class="btn btn-outline" style="width:100%; display:flex; justify-content:center; align-items:center; gap:10px;"><i class="fa-brands fa-youtube" style="color:#ef4444;"></i> Ver Video Corporativo</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ADD ITEM MODAL ===== -->
+  <div class="modal-overlay" id="add-item-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:var(--navy)" id="add-item-title">Agregar</h2>
+          <p style="color:var(--text-soft);font-size:13px;margin-top:4px" id="add-item-subtitle">Añade información a tu CV</p>
+        </div>
+        <button class="modal-close" onclick="closeModal('add-item-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" id="add-item-form">
+        <!-- Generado dinámicamente -->
+      </div>
+      <div class="modal-footer" style="margin-top: 16px; display:flex; justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="saveNewItem()"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
       </div>
     </div>
   </div>
@@ -1373,7 +1828,7 @@
   <!-- TOAST CONTAINER -->
   <div class="toast-container" id="toast-container"></div>
 
-
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="script.js"></script>
 </body>
 

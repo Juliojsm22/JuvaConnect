@@ -9,11 +9,26 @@ CREATE TABLE companies (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     logo_emoji VARCHAR(10) DEFAULT '🏢',
+    logo_filename VARCHAR(255),
     sector VARCHAR(50),
     location VARCHAR(100),
     website VARCHAR(255),
+    phone VARCHAR(20),
+    ruc VARCHAR(20),
+    founded_year INT,
     description TEXT,
     verified BOOLEAN DEFAULT FALSE,
+    logo_url TEXT,
+    banner_url TEXT,
+    gallery_urls TEXT,
+    company_size VARCHAR(50),
+    benefits TEXT,
+    facebook_url VARCHAR(255),
+    instagram_url VARCHAR(255),
+    twitter_url VARCHAR(255),
+    video_url VARCHAR(255),
+    contact_name VARCHAR(100),
+    contact_email VARCHAR(100),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -38,6 +53,13 @@ CREATE TABLE users (
     
     -- Relación opcional con Empresa si el rol es 'company'
     company_id INT REFERENCES companies(id) ON DELETE SET NULL,
+    
+    -- CV subido
+    cv_file TEXT,
+    cv_filename VARCHAR(255),
+    
+    -- Avatar
+    avatar TEXT,
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -418,3 +440,14 @@ INSERT INTO applications (user_id, job_id, status) VALUES
 -- ============================================================================
 -- FIN DEL SCRIPT
 -- ============================================================================
+
+CREATE TABLE notifications (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  icon VARCHAR(50),
+  color VARCHAR(50),
+  is_read BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
