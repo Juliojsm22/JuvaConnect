@@ -1040,9 +1040,23 @@ async function createJob() {
   const salary_max = salMaxInput ? parseFloat(salMaxInput.value) || 800 : 800;
   const location = locInput ? locInput.value : 'Managua, Nicaragua';
   
+  const deadlineInput = document.getElementById('new-job-deadline');
+  const deadline = deadlineInput ? deadlineInput.value : '';
+  
   if (!title || !description) {
     showToast('error', 'Por favor, completa el título y la descripción.');
     return;
+  }
+  
+  if (deadline) {
+    const [year, month, day] = deadline.split('-').map(Number);
+    const deadlineDate = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (deadlineDate < today) {
+      showToast('error', 'La fecha límite de aplicación no puede ser una fecha pasada.');
+      return;
+    }
   }
   
   try {
@@ -1179,6 +1193,19 @@ function saveDraftJob() {
   const salMinInput = document.querySelectorAll('#tab-new-vacancy input')[1];
   const salMaxInput = document.querySelectorAll('#tab-new-vacancy input')[2];
   const locInput = document.querySelectorAll('#tab-new-vacancy input')[3];
+  const deadlineInput = document.getElementById('new-job-deadline');
+  const deadline = deadlineInput ? deadlineInput.value : '';
+  
+  if (deadline) {
+    const [year, month, day] = deadline.split('-').map(Number);
+    const deadlineDate = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (deadlineDate < today) {
+      showToast('error', 'La fecha límite de aplicación no puede ser una fecha pasada.');
+      return;
+    }
+  }
   
   const draft = {
     id: window.currentDraftId || ('draft_' + Date.now()),
@@ -1328,6 +1355,14 @@ function switchCompanyTab(tab) {
     if (inputs.length > 1) inputs[1].value = '';
     if (inputs.length > 2) inputs[2].value = '';
     if (inputs.length > 3) inputs[3].value = '';
+    
+    const deadlineInput = document.getElementById('new-job-deadline');
+    if (deadlineInput) {
+      deadlineInput.value = '';
+      const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+      const localISOTime = (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+      deadlineInput.setAttribute('min', localISOTime);
+    }
   }
 }
 

@@ -241,7 +241,8 @@ app.post('/api/login', async (req, res) => {
         profile_completion: user.profile_completion || 85,
         company_id: user.company_id,
         avatar: user.avatar,
-        company_logo_url: user.company_logo_url
+        company_logo_url: user.company_logo_url,
+        subscription_plan: user.subscription_plan || 'gratis'
       }
     });
   } catch (err) {
@@ -288,6 +289,10 @@ app.post('/api/register', async (req, res) => {
     `;
     const result = await pool.query(insertUserQuery, [name, email, password_hash, role, career, university, phone, dob, age, address, cedula, companyId]);
     const newUser = result.rows[0];
+    
+    if (role === 'company') {
+      newUser.subscription_plan = 'gratis';
+    }
     
     // Generar Token JWT
     const token = jwt.sign(
