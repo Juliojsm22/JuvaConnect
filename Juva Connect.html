@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JuvaConnect</title>
+  <link rel="icon" type="image/png" href="2.png">
   <link
     href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap"
     rel="stylesheet">
@@ -18,7 +19,7 @@
   <!-- NAVBAR -->
   <nav class="navbar" id="navbar">
     <a href="#" class="nav-logo" onclick="showPage('landing')">
-      <div class="nav-logo-icon"><i class="fa-solid fa-briefcase"></i></div>
+      <img src="JuvaConnect.png" alt="Logo" class="logo-img">
       <div class="nav-logo-text">Juva<span>Connect</span></div>
     </a>
     <div class="nav-links">
@@ -27,7 +28,14 @@
       <button class="nav-link" onclick="showPage('landing');scrollToSection('#companies-section')">Empresas</button>
       <button class="nav-link" onclick="showPage('landing');scrollToSection('#how-section')">¿Cómo funciona?</button>
     </div>
-    <div class="nav-actions" id="nav-auth-btns">
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <button class="btn btn-ghost btn-sm" id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" style="padding: 8px; border: none; font-size: 16px;">
+        <i class="fa-solid fa-moon"></i>
+      </button>
+      <button class="btn btn-ghost btn-sm mobile-menu-btn" onclick="toggleMobileMenu()" style="display: none; padding: 8px; border: none; font-size: 18px;">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+      <div class="nav-actions" id="nav-auth-btns">
       <button class="btn btn-ghost btn-sm" onclick="openModal('auth-modal');switchAuthTab('login')">Iniciar
         sesión</button>
       <button class="btn btn-primary btn-sm"
@@ -37,6 +45,7 @@
       <button class="btn btn-ghost btn-sm" onclick="goToDashboard()"><i class="fa-solid fa-gauge"></i>
         Dashboard</button>
       <div class="nav-avatar" onclick="goToDashboard()" title="Mi perfil">JP</div>
+    </div>
     </div>
   </nav>
 
@@ -306,7 +315,10 @@
           </ul>
         </div>
         <div class="footer-col">
-          <h4>JuvaConnect</h4>
+          <div class="footer-brand-logo">
+            <img src="JuvaConnect.png" alt="Logo" class="logo-img" style="height: 36px;">
+            <div class="footer-brand-logo-text">Juva<span>Connect</span></div>
+          </div>
           <ul>
             <li><a href="#">Acerca de</a></li>
             <li><a href="#">Contacto</a></li>
@@ -354,6 +366,8 @@
             Digital</button>
           <button class="sidebar-item" onclick="switchDashTab('notifications')"><i class="fa-solid fa-bell"></i>
             Notificaciones <span class="sidebar-badge"><span class="badge badge-coral" id="badge-notifications">2</span></span></button>
+          <button class="sidebar-item" onclick="switchDashTab('messages')"><i class="fa-solid fa-comments"></i>
+            Mensajes <span class="sidebar-badge"><span class="badge badge-primary" id="badge-student-messages" style="display:none">0</span></span></button>
         </div>
         <div style="margin-top:auto;padding:16px 24px;border-top:1px solid rgba(255,255,255,0.08);margin-top:40px">
           <button class="sidebar-item" onclick="logout()" style="color:rgba(255,84,73,0.8)"><i
@@ -717,6 +731,36 @@
           </div>
           <div class="jobs-grid" id="saved-jobs-grid"></div>
         </div>
+
+        <!-- MESSAGES TAB (STUDENT) -->
+        <div class="dash-tab" id="tab-messages">
+          <div class="dash-header">
+            <div class="dash-title">Mensajes</div>
+          </div>
+          <div class="chat-container">
+            <div class="chat-sidebar">
+              <div id="student-chat-list"></div>
+            </div>
+            <div class="chat-main" id="student-chat-main-area" style="display:none;">
+              <div class="chat-header">
+                <div class="chat-contact-info" id="student-chat-header-name">Contacto</div>
+              </div>
+              <div class="chat-history" id="student-chat-history"></div>
+              <div class="chat-input-area" style="position:relative">
+                <input type="file" id="student-chat-img" accept="image/*" style="display:none" onchange="previewChatImage(event, 'student')">
+                <button class="btn btn-ghost" style="position:absolute; left:25px; top:50%; transform:translateY(-50%); padding:5px; color:var(--text-soft)" onclick="document.getElementById('student-chat-img').click()" title="Adjuntar imagen">
+                  <i class="fa-solid fa-paperclip"></i>
+                </button>
+                <input type="text" id="student-chat-input" placeholder="Escribe un mensaje..." style="padding-left:45px">
+                <button class="btn btn-primary" onclick="sendChatMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+              </div>
+            </div>
+            <div class="chat-main" id="student-chat-empty-state" style="display:flex; justify-content:center; align-items:center; flex-direction:column; color:var(--text-soft)">
+              <i class="fa-solid fa-comments" style="font-size:48px; margin-bottom:15px"></i>
+              <p>Selecciona un chat para comenzar</p>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   </div>
@@ -743,10 +787,15 @@
             vacantes</button>
           <button class="sidebar-item" onclick="switchCompanyTab('candidates')"><i class="fa-solid fa-users"></i>
             Candidatos <span class="sidebar-badge"><span id="badge-company-candidates" class="badge badge-coral" style="display:none">0</span></span></button>
+          <button class="sidebar-item" onclick="switchCompanyTab('explore-interns')"><i class="fa-solid fa-user-graduate"></i> Explorar Pasantes</button>
           <button class="sidebar-item" onclick="switchCompanyTab('new-vacancy')"><i class="fa-solid fa-plus-circle"></i>
             Nueva vacante</button>
           <button class="sidebar-item" onclick="switchCompanyTab('company-profile')"><i class="fa-solid fa-building"></i>
             Perfil Digital</button>
+          <button class="sidebar-item" onclick="switchCompanyTab('company-messages')"><i class="fa-solid fa-comments"></i>
+            Mensajes <span class="sidebar-badge"><span class="badge badge-primary" id="badge-company-messages" style="display:none">0</span></span></button>
+          <button class="sidebar-item" onclick="switchCompanyTab('company-billing')"><i class="fa-solid fa-credit-card"></i>
+            Suscripción</button>
         </div>
         <div style="padding:16px 24px;border-top:1px solid rgba(255,255,255,0.08);margin-top:40px">
           <button class="sidebar-item" onclick="logout()" style="color:rgba(255,84,73,0.8)"><i
@@ -935,6 +984,7 @@
                   <th>Universidad</th>
                   <th>Aplicó</th>
                   <th>Estado</th>
+                  <th>Match</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -996,6 +1046,29 @@
           </div>
         </div>
 
+        <!-- EXPLORE INTERNS -->
+        <div class="dash-tab" id="tab-explore-interns">
+          <div class="dash-header" style="flex-direction: column; align-items: stretch; gap: 16px;">
+            <div class="dash-title">Explorar Pasantes</div>
+            <div class="dash-subtitle" style="margin-top:-10px;">Encuentra a los mejores talentos universitarios para tu empresa</div>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top:10px;">
+              <div class="search-bar" style="flex: 1; min-width: 200px;">
+                <i class="fa-solid fa-search"></i>
+                <input type="text" id="dash-interns-search" placeholder="Buscar por nombre, carrera o habilidad..." onkeyup="filterInterns()">
+              </div>
+              <select id="dash-interns-cat" class="form-group" style="margin-bottom: 0; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; width: 220px; outline:none;" onchange="filterInterns()">
+                <option value="all">Todas las carreras</option>
+                <option value="Sistemas">Sistemas y Computación</option>
+                <option value="Administración">Administración</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Diseño">Diseño</option>
+                <option value="Finanzas">Finanzas / Contabilidad</option>
+              </select>
+            </div>
+          </div>
+          <div class="jobs-grid" id="interns-grid"></div>
+        </div>
+
         <!-- NEW VACANCY -->
         <div class="dash-tab" id="tab-new-vacancy">
           <div class="dash-header">
@@ -1042,6 +1115,106 @@
               <button class="btn btn-primary" onclick="createJob()"><i
                   class="fa-solid fa-paper-plane"></i> Publicar vacante</button>
               <button class="btn btn-ghost" onclick="saveDraftJob()">Guardar borrador</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- MESSAGES TAB (COMPANY) -->
+        <div class="dash-tab" id="tab-company-messages">
+          <div class="dash-header">
+            <div class="dash-title">Mensajes Directos</div>
+          </div>
+          <div class="chat-container">
+            <div class="chat-sidebar">
+              <div id="company-chat-list"></div>
+            </div>
+            <div class="chat-main" id="company-chat-main-area" style="display:none;">
+              <div class="chat-header">
+                <div class="chat-contact-info" id="company-chat-header-name">Contacto</div>
+              </div>
+              <div class="chat-history" id="company-chat-history"></div>
+              <div class="chat-input-area" style="position:relative">
+                <input type="file" id="company-chat-img" accept="image/*" style="display:none" onchange="previewChatImage(event, 'company')">
+                <button class="btn btn-ghost" style="position:absolute; left:25px; top:50%; transform:translateY(-50%); padding:5px; color:var(--text-soft)" onclick="document.getElementById('company-chat-img').click()" title="Adjuntar imagen">
+                  <i class="fa-solid fa-paperclip"></i>
+                </button>
+                <input type="text" id="company-chat-input" placeholder="Escribe un mensaje..." style="padding-left:45px">
+                <button class="btn btn-primary" onclick="sendChatMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+              </div>
+            </div>
+            <div class="chat-main" id="company-chat-empty-state" style="display:flex; justify-content:center; align-items:center; flex-direction:column; color:var(--text-soft)">
+              <i class="fa-solid fa-comments" style="font-size:48px; margin-bottom:15px"></i>
+              <p>Selecciona un chat para comenzar</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- COMPANY BILLING TAB -->
+        <div class="dash-tab" id="tab-company-billing">
+          <div class="dash-header">
+            <div class="dash-title">Facturación y Suscripción</div>
+            <div class="dash-subtitle">Administra tu plan de JuvaConnect y mejora tu visibilidad</div>
+          </div>
+          
+          <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:24px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-size:14px; color:var(--text-soft); margin-bottom:4px;">Plan Actual</div>
+                <div style="font-size:24px; font-weight:700; color:var(--primary); display:flex; align-items:center; gap:10px;">
+                  <span id="current-plan-display">Gratis</span>
+                  <span class="badge badge-primary" style="font-size:12px;">Activo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:24px;">
+            <!-- Plan Gratis -->
+            <div class="card" style="border: 2px solid transparent;" id="plan-card-gratis">
+              <div style="font-size:18px; font-weight:700; margin-bottom:10px; color:var(--text-soft);">Gratis</div>
+              <div style="font-size:32px; font-weight:800; margin-bottom:20px;">$0<span style="font-size:14px; color:var(--text-soft); font-weight:400;">/mes</span></div>
+              <ul style="list-style:none; margin-bottom:24px; display:flex; flex-direction:column; gap:10px;">
+                <li><i class="fa-solid fa-check" style="color:var(--primary); margin-right:8px;"></i> 1 vacante activa</li>
+                <li><i class="fa-solid fa-check" style="color:var(--primary); margin-right:8px;"></i> Perfil estándar</li>
+                <li><i class="fa-solid fa-check" style="color:var(--primary); margin-right:8px;"></i> Soporte comunitario</li>
+              </ul>
+              <button class="btn btn-secondary" style="width:100%;" disabled id="btn-plan-gratis">Plan Actual</button>
+            </div>
+            <!-- Plan Básico -->
+            <div class="card" style="border: 2px solid transparent;" id="plan-card-basico">
+              <div style="font-size:18px; font-weight:700; margin-bottom:10px;">Básico</div>
+              <div style="font-size:32px; font-weight:800; margin-bottom:20px;">$5.00<span style="font-size:14px; color:var(--text-soft); font-weight:400;">/mes</span></div>
+              <ul style="list-style:none; margin-bottom:24px; display:flex; flex-direction:column; gap:10px;">
+                <li><i class="fa-solid fa-check" style="color:var(--primary); margin-right:8px;"></i> 10 vacantes simultáneas</li>
+                <li><i class="fa-solid fa-check" style="color:var(--primary); margin-right:8px;"></i> Flujo estándar de postulaciones</li>
+              </ul>
+              <button class="btn btn-primary" style="width:100%;" onclick="openCheckoutModal('basico', 5)" id="btn-plan-basico">Adquirir Básico</button>
+            </div>
+            
+            <!-- Plan Plus -->
+            <div class="card" style="border: 2px solid transparent;" id="plan-card-plus">
+              <div style="font-size:18px; font-weight:700; margin-bottom:10px; color:var(--blue);">Plus</div>
+              <div style="font-size:32px; font-weight:800; margin-bottom:20px;">$10.00<span style="font-size:14px; color:var(--text-soft); font-weight:400;">/mes</span></div>
+              <ul style="list-style:none; margin-bottom:24px; display:flex; flex-direction:column; gap:10px;">
+                <li><i class="fa-solid fa-check" style="color:var(--primary); margin-right:8px;"></i> 20 vacantes mensuales</li>
+                <li><i class="fa-solid fa-check" style="color:var(--primary); margin-right:8px;"></i> Insignia "Empresa Verificada"</li>
+                <li><i class="fa-solid fa-check" style="color:var(--primary); margin-right:8px;"></i> Mejores filtros de búsqueda</li>
+              </ul>
+              <button class="btn btn-primary" style="width:100%;" onclick="openCheckoutModal('plus', 10)" id="btn-plan-plus">Adquirir Plus</button>
+            </div>
+
+            <!-- Plan Premium -->
+            <div class="card" style="border: 2px solid transparent;" id="plan-card-premium">
+              <div style="font-size:18px; font-weight:700; margin-bottom:10px; color:#f59e0b;">Premium</div>
+              <div style="font-size:32px; font-weight:800; margin-bottom:20px;">$20.00<span style="font-size:14px; color:var(--text-soft); font-weight:400;">/mes</span></div>
+              <ul style="list-style:none; margin-bottom:24px; display:flex; flex-direction:column; gap:10px;">
+                <li><i class="fa-solid fa-check" style="color:var(--primary); margin-right:8px;"></i> 50 vacantes al mes</li>
+                <li><i class="fa-solid fa-check" style="color:var(--primary); margin-right:8px;"></i> Vacantes destacadas en feed</li>
+                <li><i class="fa-solid fa-check" style="color:var(--primary); margin-right:8px;"></i> Chat directo con talento</li>
+                <li><i class="fa-solid fa-check" style="color:var(--primary); margin-right:8px;"></i> Analíticas y métricas exclusivas</li>
+                <li><i class="fa-solid fa-check" style="color:var(--primary); margin-right:8px;"></i> Perfil empresarial avanzado</li>
+              </ul>
+              <button class="btn btn-primary" style="width:100%;" onclick="openCheckoutModal('premium', 20)" id="btn-plan-premium">Adquirir Premium</button>
             </div>
           </div>
         </div>
@@ -1252,7 +1425,7 @@
                 </tr>
                 <tr>
                   <td>
-                    <div class="company-cell">
+                     <div class="company-cell">
                       <div class="cell-icon">🏦</div><span>Banco LAFISE</span>
                     </div>
                   </td>
@@ -1578,6 +1751,54 @@
     </div>
   </div>
 
+  <!-- ===== CHECKOUT MODAL ===== -->
+  <div class="modal-overlay" id="checkout-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Completar Pago</h3>
+        <button class="modal-close" onclick="closeModal('checkout-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div style="background:var(--blue-pale); color:var(--blue); padding:16px; border-radius:8px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700" id="checkout-plan-name">Plan Pro</div>
+            <div style="font-size:14px; opacity:0.8">Suscripción mensual</div>
+          </div>
+          <div style="font-size:24px; font-weight:800" id="checkout-plan-price">$49</div>
+        </div>
+        
+        <form id="checkout-form" onsubmit="processCheckout(event)">
+          <input type="hidden" id="checkout-plan-id">
+          <div class="form-group">
+            <label class="form-label">Titular de la tarjeta</label>
+            <input type="text" class="form-control" placeholder="Ej. Juan Pérez" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Número de tarjeta</label>
+            <div style="position:relative">
+              <i class="fa-brands fa-cc-visa" style="position:absolute; left:12px; top:12px; color:var(--text-soft); font-size:20px;"></i>
+              <input type="text" class="form-control" placeholder="0000 0000 0000 0000" style="padding-left:40px;" maxlength="19" required>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div class="form-group">
+              <label class="form-label">Fecha Exp.</label>
+              <input type="text" class="form-control" placeholder="MM/YY" maxlength="5" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">CVV</label>
+              <input type="password" class="form-control" placeholder="123" maxlength="4" required>
+            </div>
+          </div>
+          
+          <button type="submit" class="btn btn-primary" style="width:100%; margin-top:10px;" id="btn-process-checkout">
+            <i class="fa-solid fa-lock" style="margin-right:8px;"></i> Pagar ahora
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== AUTH MODAL ===== -->
   <div class="modal-overlay" id="auth-modal">
     <div class="modal auth-modal">
@@ -1805,6 +2026,44 @@
       </div>
     </div>
   </div>
+  <!-- ===== PUBLIC STUDENT PROFILE MODAL ===== -->
+  <div class="modal-overlay" id="public-student-modal">
+    <div class="modal" style="max-width:600px; padding:0; overflow:hidden;">
+      <button class="modal-close" onclick="closeModal('public-student-modal')" style="position:absolute; top:15px; right:15px; z-index:10; background:rgba(255,255,255,0.8); border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      
+      <!-- Banner & Avatar -->
+      <div id="ps-banner" style="width:100%; height:120px; background:linear-gradient(135deg, var(--teal) 0%, #1e3a8a 100%); position:relative;"></div>
+      
+      <div style="padding:0 30px 30px 30px; position:relative;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:-50px; margin-bottom:20px;">
+          <div id="ps-avatar" style="width:100px; height:100px; border-radius:50%; background:white; border:4px solid white; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); display:flex; align-items:center; justify-content:center; font-size:36px; font-weight:bold; color:var(--teal); overflow:hidden; z-index:2;">
+            PS
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-primary btn-sm" id="ps-contact-btn" onclick="showToast('success', 'Mensaje enviado')"><i class="fa-solid fa-envelope"></i> Contactar</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:25px;">
+          <h2 id="ps-name" style="font-size:24px; margin-bottom:5px;">Nombre del Pasante</h2>
+          <p id="ps-career-uni" style="color:var(--text-soft); font-size:15px;"><i class="fa-solid fa-graduation-cap"></i> Carrera • Universidad</p>
+          <p id="ps-location" style="color:var(--text-soft); font-size:14px; margin-top:5px;"><i class="fa-solid fa-location-dot"></i> Ubicación</p>
+        </div>
+
+        <div style="margin-bottom:25px;">
+          <h3 style="margin-bottom:10px; font-size:16px;">Habilidades</h3>
+          <div id="ps-skills" class="modal-tags">
+            <!-- Skills populated here -->
+          </div>
+        </div>
+
+        <div style="display:flex; gap:12px; margin-top:20px;" id="ps-actions">
+          <button id="ps-view-cv" class="btn btn-outline" style="flex:1;"><i class="fa-solid fa-file-pdf"></i> Ver Currículum (CV)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <!-- ===== ADD ITEM MODAL ===== -->
   <div class="modal-overlay" id="add-item-modal">
@@ -1829,6 +2088,7 @@
   <div class="toast-container" id="toast-container"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="http://localhost:3000/socket.io/socket.io.js"></script>
   <script src="script.js"></script>
 </body>
 

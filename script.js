@@ -1,10 +1,42 @@
 const API_URL = 'http://localhost:3000/api';
 
+async function fetchWithAuth(url, options = {}) {
+  const token = sessionStorage.getItem('juva_token');
+  if (token) {
+    if (!options.headers) options.headers = {};
+    options.headers['Authorization'] = 'Bearer ' + token;
+  }
+  return fetch(url, options);
+}
+
+
 let JOBS = [];
 let currentUser = JSON.parse(sessionStorage.getItem('juva_currentUser')) || null;
 let loggedIn = !!currentUser;
 let activeFilter = 'all';
-let favorites = new Set([3, 7]);
+
+let socket = null;
+function initSocket() {
+  if (loggedIn && currentUser) {
+    // If socket.io is loaded
+    if (typeof io !== 'undefined') {
+      socket = io(API_URL.replace('/api', ''));
+      socket.emit('register_user', currentUser.company_id || currentUser.id);
+      
+      socket.on('new_notification', (data) => {
+        showToast('success', `${data.title}: ${data.message}`);
+        // Opcional: Actualizar contador de notificaciones si existe
+      });
+    }
+  }
+}
+
+// Inicializar socket si ya hay sesión
+if (loggedIn) {
+  setTimeout(initSocket, 500); // Esperar a que cargue el script de io
+}
+
+let favorites = new Set(JSON.parse(localStorage.getItem('juva_favorites')) || [3, 7]);
 let USERS = JSON.parse(localStorage.getItem('juva_users')) || [
   { id: 1, name: 'Juan Pérez', email: 'estudiante@test.com', password: '123', role: 'student', career: 'Ing. en Sistemas', university: 'UNI' },
   { id: 2, name: 'TechNica Labs', email: 'empresa@test.com', password: '123', role: 'company', company_id: 1, career: 'Tecnología', university: '-' },
@@ -13,10 +45,13 @@ let USERS = JSON.parse(localStorage.getItem('juva_users')) || [
 
 // Cargar ofertas de trabajo desde el servidor Express + PostgreSQL
 async function loadJobsFromServer() {
+  renderJobSkeletons('jobs-grid', 6);
+  renderJobSkeletons('rec-jobs-grid', 4);
   try {
-    const res = await fetch(`${API_URL}/jobs`);
+    const res = await fetchWithAuth(`${API_URL}/jobs`);
     if (!res.ok) throw new Error('Error al conectar con la API');
-    JOBS = await res.json();
+    const jsonRes = await res.json();
+    JOBS = jsonRes.data || jsonRes;
     renderJobs('jobs-grid', JOBS);
     renderJobs('rec-jobs-grid', JOBS.slice(0, 4));
     filterDashJobs();
@@ -227,7 +262,7 @@ async function viewCompanyProfile(company_id) {
   }
   showToast('info', 'Cargando perfil de la empresa...');
   try {
-    const res = await fetch(`${API_URL}/companies/${company_id}`);
+    const res = await fetchWithAuth(`${API_URL}/companies/${company_id}`);
     if (!res.ok) throw new Error('Empresa no encontrada');
     const company = await res.json();
     
@@ -323,6 +358,7 @@ function setFilter(el, cat) {
 function toggleFav(e, id) {
   if(e) e.stopPropagation();
   if (favorites.has(id)) favorites.delete(id); else favorites.add(id);
+  localStorage.setItem('juva_favorites', JSON.stringify(Array.from(favorites)));
   filterJobs();
   renderJobs('dash-jobs-grid', JOBS);
   renderJobs('rec-jobs-grid', JOBS.slice(0, 4));
@@ -405,7 +441,10 @@ async function login() {
     
     currentUser = data.user;
     loggedIn = true;
+    sessionStorage.setItem('juva_token', data.token);
     sessionStorage.setItem('juva_currentUser', JSON.stringify(currentUser));
+    initSocket();
+    initSocket();
     
     closeModal('auth-modal');
     document.querySelectorAll('#auth-modal input').forEach(i => i.value = '');
@@ -413,8 +452,17 @@ async function login() {
     document.getElementById('nav-user-btns').classList.remove('hide');
     
     const navAvatar = document.querySelector('.nav-avatar');
-    const initials = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-    if (navAvatar) navAvatar.textContent = initials;
+    if (navAvatar) {
+      navAvatar.style.backgroundImage = 'none';
+      if (currentUser.role === 'company' && currentUser.company_logo_url) {
+        navAvatar.style.backgroundImage = `url(${currentUser.company_logo_url})`;
+        navAvatar.style.backgroundSize = 'cover';
+        navAvatar.style.backgroundPosition = 'center';
+        navAvatar.textContent = '';
+      } else {
+        navAvatar.textContent = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      }
+    }
     
     if (currentUser.role === 'company') showPage('company-dash');
     else if (currentUser.role === 'admin') showPage('admin-dash');
@@ -439,7 +487,17 @@ async function login() {
     document.getElementById('nav-user-btns').classList.remove('hide');
     
     const navAvatar = document.querySelector('.nav-avatar');
-    if (navAvatar) navAvatar.textContent = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    if (navAvatar) {
+      navAvatar.style.backgroundImage = 'none';
+      if (currentUser.role === 'company' && currentUser.company_logo_url) {
+        navAvatar.style.backgroundImage = `url(${currentUser.company_logo_url})`;
+        navAvatar.style.backgroundSize = 'cover';
+        navAvatar.style.backgroundPosition = 'center';
+        navAvatar.textContent = '';
+      } else {
+        navAvatar.textContent = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      }
+    }
     
     if (currentUser.role === 'company') showPage('company-dash');
     else if (currentUser.role === 'admin') showPage('admin-dash');
@@ -554,6 +612,11 @@ async function registerUser() {
     return;
   }
   
+  if (!email.includes('@')) {
+    showToast('error', 'Por favor, ingresa un correo electrónico válido (debe contener "@").');
+    return;
+  }
+  
   if (isCompany) {
     if (!ruc || !phone || !address) {
       showToast('error', 'Por favor, completa los campos obligatorios de la empresa (RUC, Teléfono, Dirección).');
@@ -567,16 +630,33 @@ async function registerUser() {
   }
   
   if (!isCompany) {
-    if (phone && !/^\d{8}$/.test(phone)) {
-      showToast('error', 'El número telefónico es inválido. Debe tener exactamente 8 dígitos.');
+    // Validar teléfono nicaragüense: opcional +505, seguido de 8 dígitos empezando con 2, 5, 7 u 8
+    const cleanPhone = phone ? phone.replace(/[\s-]/g, '') : '';
+    if (cleanPhone && !/^(?:\+505)?[2578]\d{7}$/.test(cleanPhone)) {
+      showToast('error', 'El número telefónico es inválido. Debe ser un número nicaragüense (8 dígitos, ej: 88888888).');
       return;
     }
-    if (cedula && !/^\d{3}-\d{6}-\d{4}[A-Za-z]$/.test(cedula)) {
-      showToast('error', 'El formato de cédula es inválido (ej: 000-000000-0000A).');
+    
+    // Validar cédula nicaragüense
+    if (cedula && !/^\d{3}-?\d{6}-?\d{4}[A-Za-z]$/.test(cedula)) {
+      showToast('error', 'El formato de cédula nicaragüense es inválido (ej: 000-000000-0000A).');
       return;
     }
-    if (age !== null && age < 18) {
-      showToast('error', 'Debes ser mayor de 18 años para registrarte.');
+    
+    // Validar fecha de nacimiento
+    if (dob) {
+      const dobDate = new Date(dob);
+      const today = new Date();
+      // Resetear hora de hoy para comparar solo fechas
+      today.setHours(0, 0, 0, 0);
+      if (dobDate > today) {
+        showToast('error', 'La fecha de nacimiento no puede ser una fecha futura.');
+        return;
+      }
+    }
+    
+    if (age !== null && age < 15) {
+      showToast('error', 'Debes ser mayor de 15 años para registrarte.');
       return;
     }
   }
@@ -599,6 +679,7 @@ async function registerUser() {
     // Iniciar sesión inmediatamente
     currentUser = data.user;
     loggedIn = true;
+    sessionStorage.setItem('juva_token', data.token);
     sessionStorage.setItem('juva_currentUser', JSON.stringify(currentUser));
     
     closeModal('auth-modal');
@@ -607,8 +688,17 @@ async function registerUser() {
     document.getElementById('nav-user-btns').classList.remove('hide');
     
     const navAvatar = document.querySelector('.nav-avatar');
-    const initials = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-    if (navAvatar) navAvatar.textContent = initials;
+    if (navAvatar) {
+      navAvatar.style.backgroundImage = 'none';
+      if (currentUser.role === 'company' && currentUser.company_logo_url) {
+        navAvatar.style.backgroundImage = `url(${currentUser.company_logo_url})`;
+        navAvatar.style.backgroundSize = 'cover';
+        navAvatar.style.backgroundPosition = 'center';
+        navAvatar.textContent = '';
+      } else {
+        navAvatar.textContent = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      }
+    }
     
     if (currentUser.role === 'company') showPage('company-dash');
     else if (currentUser.role === 'admin') showPage('admin-dash');
@@ -623,8 +713,15 @@ function logout() {
   loggedIn = false;
   currentUser = null;
   sessionStorage.removeItem('juva_currentUser');
+  sessionStorage.removeItem('juva_token');
+  if (socket) { socket.disconnect(); socket = null; }
   document.getElementById('nav-auth-btns').classList.remove('hide');
   document.getElementById('nav-user-btns').classList.add('hide');
+  const navAvatar = document.querySelector('.nav-avatar');
+  if (navAvatar) {
+    navAvatar.style.backgroundImage = 'none';
+    navAvatar.textContent = 'JP';
+  }
   showPage('landing');
   showToast('', 'Sesión cerrada');
 }
@@ -803,7 +900,7 @@ async function confirmApplyJob() {
   const job_id = selectedJob ? selectedJob.id : 1;
   
   try {
-    const res = await fetch(`${API_URL}/applications`, {
+    const res = await fetchWithAuth(`${API_URL}/applications`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: currentUser.id, job_id })
@@ -966,13 +1063,13 @@ async function createJob() {
 
     let res;
     if (window.currentEditJobId) {
-      res = await fetch(`${API_URL}/jobs/${window.currentEditJobId}`, {
+      res = await fetchWithAuth(`${API_URL}/jobs/${window.currentEditJobId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
     } else {
-      res = await fetch(`${API_URL}/jobs`, {
+      res = await fetchWithAuth(`${API_URL}/jobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -1193,11 +1290,12 @@ function scrollToSection(sel) {
 function switchDashTab(tab) {
   document.querySelectorAll('#page-student-dash .sidebar-item').forEach(i => i.classList.remove('active'));
   document.querySelectorAll('#page-student-dash .dash-tab').forEach(t => t.classList.remove('active'));
-  event.currentTarget.classList.add('active');
+  if (typeof event !== 'undefined' && event.currentTarget) event.currentTarget.classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
   if (tab === 'jobs') filterDashJobs();
   if (tab === 'saved') renderSaved();
   if (tab === 'notifications') loadNotifications();
+  if (tab === 'messages') loadConversations();
 }
 function switchCompanyTab(tab) {
   document.querySelectorAll('#page-company-dash .sidebar-item').forEach(i => i.classList.remove('active'));
@@ -1205,6 +1303,14 @@ function switchCompanyTab(tab) {
   if (typeof event !== 'undefined' && event.currentTarget) event.currentTarget.classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
   if (tab === 'company-profile') loadCompanyProfile();
+  if (tab === 'company-messages') loadConversations();
+  if (tab === 'explore-interns') {
+    if (!internsLoaded) {
+      loadInternsFromServer();
+    } else {
+      filterInterns();
+    }
+  }
   
   if (tab === 'new-vacancy' && typeof event !== 'undefined' && event.currentTarget && event.currentTarget.textContent.includes('Nueva vacante')) {
     window.currentEditJobId = null;
@@ -1247,7 +1353,7 @@ function previewCompanyImage(event, previewId, key) {
 async function loadCompanyProfile() {
   if (!currentUser || !currentUser.company_id) return;
   try {
-    const res = await fetch(`${API_URL}/companies/${currentUser.company_id}`);
+    const res = await fetchWithAuth(`${API_URL}/companies/${currentUser.company_id}`);
     if (!res.ok) throw new Error('Empresa no encontrada');
     const company = await res.json();
     currentCompanyProfile = company;
@@ -1313,7 +1419,7 @@ async function loadCompanyProfile() {
 async function deleteJob(id) {
   if (!confirm('¿Estás seguro de que deseas eliminar esta vacante?')) return;
   try {
-    const res = await fetch(`${API_URL}/jobs/${id}`, { method: 'DELETE' });
+    const res = await fetchWithAuth(`${API_URL}/jobs/${id}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('Error al eliminar');
     showToast('success', 'Vacante eliminada exitosamente');
     await loadJobsFromServer();
@@ -1410,7 +1516,7 @@ async function saveCompanyProfile() {
   };
   
   try {
-    const res = await fetch(`${API_URL}/companies/${currentUser.company_id}/profile`, {
+    const res = await fetchWithAuth(`${API_URL}/companies/${currentUser.company_id}/profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -1573,10 +1679,12 @@ function renderCompanyData() {
   const nameEl = document.querySelector('#page-company-dash .sidebar-section div[style*="font-weight:600"]');
   if (nameEl) nameEl.textContent = currentUser.name;
   
+  // Actualizar UI de suscripciones
+  updateSubscriptionUI(currentUser.subscription_plan || 'gratis');
+
   const companySubtitle = document.getElementById('company-welcome-subtitle');
-  // Se deja dinámico si la empresa ya guardó su ubicación, pero como base se pone esta info
-  if (companySubtitle && !companySubtitle.textContent.includes('—')) {
-    companySubtitle.textContent = `${currentUser.name} — Managua, Nicaragua`;
+  if (companySubtitle) {
+    companySubtitle.textContent = `${currentUser.name} — ${currentUser.location || 'Managua, Nicaragua'}`;
   }
 
   const myJobs = JOBS.filter(j => j.company_id === currentUser.company_id || j.company === currentUser.name);
@@ -1641,9 +1749,9 @@ async function loadCandidates() {
   const candidatesTableBody = document.querySelector('#tab-candidates tbody');
   const compId = currentUser.company_id || 1;
   let candidates = [];
-  
+  renderCandidateSkeletons();
   try {
-    const res = await fetch(`${API_URL}/companies/${compId}/candidates`);
+    const res = await fetchWithAuth(`${API_URL}/companies/${compId}/candidates`);
     if (res.ok) {
       candidates = await res.json();
     } else {
@@ -1664,11 +1772,11 @@ async function loadCandidates() {
 
   const statVals = document.querySelectorAll('#tab-company-overview .stat-val');
   if (statVals.length >= 4) { 
+    const myJobs = JOBS.filter(j => j.company_id === currentUser.company_id || j.company === currentUser.name);
+    statVals[0].textContent = myJobs.length; 
     statVals[1].textContent = candidates.length; 
-    if(currentUser.id !== 2) {
-      statVals[2].textContent='0'; 
-      statVals[3].textContent='0'; 
-    }
+    statVals[2].textContent = myJobs.length > 0 ? (myJobs.length * 12 + candidates.length * 3) : 0; 
+    statVals[3].textContent = candidates.filter(c => c.status === 'accepted').length; 
   }
   
   const badgeCandidates = document.getElementById('badge-company-candidates');
@@ -1690,12 +1798,39 @@ async function loadCandidates() {
   if (chipRejected) chipRejected.textContent = `Rechazados (${candidates.filter(c => c.status === 'rejected').length})`;
 
 
+  // Update Charts Dynamically
+  const myJobs = JOBS.filter(j => j.company_id === currentUser.company_id || j.company === currentUser.name);
+  if (document.getElementById('companyChart1')) {
+    const jobLabels = [];
+    const jobData = [];
+    if (myJobs.length === 0) {
+      jobLabels.push('Sin vacantes');
+      jobData.push(0);
+    } else {
+      myJobs.forEach(job => {
+        jobLabels.push(job.title.length > 15 ? job.title.substring(0,15) + '...' : job.title);
+        jobData.push(candidates.filter(c => c.role === job.title).length);
+      });
+    }
+    makeChart('companyChart1', 'bar', jobLabels, [{ label: 'Candidatos', data: jobData, backgroundColor: '#1D5CFF', borderRadius: 6 }]);
+  }
+
+  if (document.getElementById('companyChart2')) {
+    const pending = candidates.filter(c => c.status === 'pending').length;
+    const review = candidates.filter(c => c.status === 'review').length;
+    const accepted = candidates.filter(c => c.status === 'accepted').length;
+    const rejected = candidates.filter(c => c.status === 'rejected').length;
+    
+    if (candidates.length === 0) {
+      makeChart('companyChart2', 'doughnut', ['Sin candidatos'], [{ data: [1], backgroundColor: ['#E2E8F0'], borderWidth: 0 }]);
+    } else {
+      makeChart('companyChart2', 'doughnut', ['Pendiente', 'En revisión', 'Aceptado', 'Rechazado'], [{ data: [pending, review, accepted, rejected], backgroundColor: ['#F59E0B', '#1D5CFF', '#00B89C', '#FF5449'], borderWidth: 0 }]);
+    }
+  }
+
   if (candidates.length === 0) {
     if (rc) rc.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-soft)">Aún no tienes candidatos.</div>';
     if (candidatesTableBody) candidatesTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay candidatos</td></tr>';
-    
-    const charts = document.querySelectorAll('#tab-company-overview .chart-container');
-    charts.forEach(c => c.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100px;color:var(--text-soft);font-size:13px">No hay suficientes datos todavía</div>');
     return;
   }
   
@@ -1712,10 +1847,11 @@ async function loadCandidates() {
           <div class="candidate-name">${c.name}</div>
           <div class="candidate-career">${c.career} · ${c.role}</div>
         </div>
-        <span class="status-pill status-${c.status}">${c.status === 'pending' ? 'Pendiente' : c.status === 'accepted' ? 'Aceptado' : 'En revisión'}</span>
+        <span class="status-pill status-${c.status}">${c.status === 'pending' ? 'Pendiente' : c.status === 'accepted' ? 'Aceptado' : c.status === 'rejected' ? 'Rechazado' : 'En revisión'}</span>
         <div class="candidate-actions">
           <button class="btn btn-ghost btn-sm" onclick="viewCandidateCV('${c.user_id || c.name}')">Ver CV</button>
-          <button class="btn btn-primary btn-sm" onclick="updateCandidateStatus('${c.application_id || c.name}', 'accepted')">Aceptar</button>
+          ${c.status !== 'accepted' ? `<button class="btn btn-primary btn-sm" onclick="updateCandidateStatus('${c.application_id || c.name}', 'accepted')">Aceptar</button>` : ''}
+          ${c.status !== 'rejected' ? `<button class="btn btn-ghost btn-sm" style="color:var(--coral);" onclick="updateCandidateStatus('${c.application_id || c.name}', 'rejected')">Rechazar</button>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -1739,11 +1875,18 @@ async function loadCandidates() {
         <td>${c.role}</td>
         <td>${c.university}</td>
         <td>${dateStr}</td>
-        <td><span class="status-pill status-${c.status}">${c.status === 'pending' ? 'Pendiente' : c.status === 'accepted' ? 'Aceptado' : 'En revisión'}</span></td>
+        <td><span class="status-pill status-${c.status}">${c.status === 'pending' ? 'Pendiente' : c.status === 'accepted' ? 'Aceptado' : c.status === 'rejected' ? 'Rechazado' : 'En revisión'}</span></td>
+        <td>
+          <span style="font-weight:600; color: ${c.match_score >= 80 ? 'var(--primary)' : c.match_score >= 50 ? 'var(--warning, orange)' : 'var(--text-soft)'};">
+            ${c.match_score !== undefined ? c.match_score + '%' : '-'}
+          </span>
+        </td>
         <td>
           <div style="display:flex;gap:6px">
             <button class="btn btn-ghost btn-sm" onclick="viewCandidateCV('${c.user_id || c.name}')">Ver CV</button>
-            <button class="btn btn-primary btn-sm" onclick="updateCandidateStatus('${c.application_id || c.name}', 'accepted')">Aceptar</button>
+            ${c.status !== 'accepted' ? `<button class="btn btn-primary btn-sm" onclick="updateCandidateStatus('${c.application_id || c.name}', 'accepted')">Aceptar</button>` : ''}
+            ${c.status !== 'rejected' ? `<button class="btn btn-ghost btn-sm" style="color:var(--coral);" onclick="updateCandidateStatus('${c.application_id || c.name}', 'rejected')">Rechazar</button>` : ''}
+            <button class="btn btn-ghost btn-sm" style="color:var(--blue)" onclick="startChatWithCandidate(${c.user_id}, '${c.name}')"><i class="fa-solid fa-comment"></i> Contactar</button>
           </div>
         </td>
       </tr>`;
@@ -1758,7 +1901,7 @@ async function viewCandidateCV(userIdOrName) {
     if (typeof userId === 'string' && isNaN(parseInt(userId))) {
       userId = 1; // Default to student ID 1 for mock data
     }
-    const res = await fetch(`${API_URL}/cv/${userId}`);
+    const res = await fetchWithAuth(`${API_URL}/cv/${userId}`);
     const data = await res.json();
     if (data.fileData) {
       // Use fetch to convert data URI to blob
@@ -1784,13 +1927,16 @@ async function updateCandidateStatus(idOrName, newStatus) {
 
   try {
     if (!isNaN(parseInt(idOrName))) {
-      const res = await fetch(`${API_URL}/applications/${idOrName}/status`, {
+      const res = await fetchWithAuth(`${API_URL}/applications/${idOrName}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
       const data = await res.json();
-      if (!data.error) {
+      if (data.error) {
+        showToast('error', data.error);
+        return; // Detener ejecución si hay error (ej: ya estaba aceptado)
+      } else {
         isUpdated = true;
       }
     }
@@ -1849,8 +1995,7 @@ function initStudentCharts() {
   makeChart('statusChart', 'doughnut', ['Pendiente', 'En revisión', 'Aceptado', 'Rechazado'], [{ data: [3, 2, 1, 2], backgroundColor: ['#F59E0B', '#1D5CFF', '#00B89C', '#FF5449'], borderWidth: 0, hoverOffset: 4 }]);
 }
 function initCompanyCharts() {
-  makeChart('companyChart1', 'bar', ['Frontend Jr.', 'Backend Dev', 'UI/UX', 'Data Analyst'], [{ label: 'Candidatos', data: [12, 18, 5, 30], backgroundColor: '#1D5CFF', borderRadius: 6 }]);
-  makeChart('companyChart2', 'doughnut', ['Pendiente', 'En revisión', 'Aceptado', 'Rechazado'], [{ data: [20, 15, 8, 4], backgroundColor: ['#F59E0B', '#1D5CFF', '#00B89C', '#FF5449'], borderWidth: 0 }]);
+  // Los gráficos ahora se inicializan y actualizan dinámicamente en loadCandidates()
 }
 function initAdminCharts() {
   makeChart('adminChart1', 'line', ['Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May'], [
@@ -1971,7 +2116,7 @@ async function saveProfile() {
   }
   
   try {
-    const res = await fetch(`${API_URL}/users/${currentUser.id}/profile`, {
+    const res = await fetchWithAuth(`${API_URL}/users/${currentUser.id}/profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2309,7 +2454,7 @@ async function loadNotifications() {
   if (!notifList) return;
 
   try {
-    const res = await fetch(`${API_URL}/users/${currentUser.id}/notifications`);
+    const res = await fetchWithAuth(`${API_URL}/users/${currentUser.id}/notifications`);
     if (res.ok) {
       const data = await res.json();
       if (data.length === 0) {
@@ -2317,11 +2462,11 @@ async function loadNotifications() {
       } else {
         notifList.innerHTML = data.map(n => `<li class="notif-item">
           <div class="notif-icon" style="background:var(--${n.color}-pale)"><i class="fa-solid ${n.icon}" style="color:var(--${n.color})"></i></div>
-          <div class="notif-content">
+          <div class="notif-content" style="flex:1;">
             <p>${n.message}</p>
             <span>${new Date(n.created_at).toLocaleString()}</span>
           </div>
-          ${!n.is_read ? '<div class="notif-dot"></div>' : ''}
+          ${!n.is_read ? `<button class="btn btn-ghost btn-sm" onclick="markNotifAsRead(${n.id})" title="Marcar como leída" style="margin-right:10px;"><i class="fa-solid fa-check"></i></button><div class="notif-dot"></div>` : ''}
         </li>`).join('');
       }
       
@@ -2341,3 +2486,540 @@ async function loadNotifications() {
     console.error('Error fetching notifications:', err);
   }
 }
+
+async function markNotifAsRead(id) {
+  try {
+    const res = await fetchWithAuth(`${API_URL}/notifications/${id}/read`, { method: 'PUT' });
+    if (res.ok) {
+      loadNotifications();
+      showToast('success', 'Notificación leída');
+    }
+  } catch (err) {
+    console.error('Error marking notification as read:', err);
+    showToast('error', 'Error al actualizar notificación');
+  }
+}
+
+// ==========================================
+// TEMA OSCURO
+// ==========================================
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme');
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('juva_theme', newTheme);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.innerHTML = newTheme === 'dark' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+}
+
+// INICIALIZAR TEMA
+const savedTheme = localStorage.getItem('juva_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+document.documentElement.setAttribute('data-theme', savedTheme);
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.innerHTML = savedTheme === 'dark' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+});
+
+// ==========================================
+// MENU MOVIL (RESPONSIVE)
+// ==========================================
+function toggleMobileMenu() {
+  const navLinks = document.querySelector('.nav-links');
+  if (navLinks) {
+    navLinks.classList.toggle('show-mobile');
+  }
+}
+
+// ==========================================
+// SKELETON LOADERS
+// ==========================================
+function renderJobSkeletons(containerId, count = 4) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    html += `
+      <div class="job-card skeleton" style="min-height: 160px; margin-bottom: 20px;">
+        <div class="jc-header"><div class="jc-logo"></div></div>
+        <div class="jc-title">Loading title</div>
+        <div class="jc-company">Loading company</div>
+      </div>
+    `;
+  }
+  container.innerHTML = html;
+}
+
+function renderCandidateSkeletons() {
+  const rc = document.getElementById('recent-candidates');
+  if (rc) {
+    let html = '';
+    for(let i=0; i<3; i++){
+       html += '<div class="candidate-card skeleton" style="min-height: 80px; margin-bottom: 10px;"></div>';
+    }
+    rc.innerHTML = html;
+  }
+  const tb = document.querySelector('#tab-candidates tbody');
+  if(tb) {
+     tb.innerHTML = '<tr><td colspan="6"><div class="skeleton" style="height: 40px; width: 100%;"></div></td></tr>';
+  }
+}
+
+// ==========================================
+// CHAT SYSTEM LOGIC
+// ==========================================
+let currentChatUserId = null;
+let currentChatUserName = '';
+
+async function loadConversations() {
+  if (!loggedIn) return;
+  const listContainer = document.getElementById(currentUser.role === 'company' ? 'company-chat-list' : 'student-chat-list');
+  if (!listContainer) return;
+  
+  try {
+    const res = await fetchWithAuth(`${API_URL}/messages/conversations`);
+    if (res.ok) {
+      const convos = await res.json();
+      if (convos.length === 0) {
+        listContainer.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-soft)">No tienes mensajes aún</div>';
+        return;
+      }
+      listContainer.innerHTML = convos.map(c => {
+        const init = c.other_user_name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+        const dateStr = new Date(c.last_message_date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        const prefix = c.sender_id === currentUser.id ? 'Tú: ' : '';
+        return `
+          <div class="chat-list-item" onclick="loadChat(${c.other_user_id}, '${c.other_user_name}')">
+            <div class="candidate-avatar" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;font-size:14px;background:var(--blue-pale);color:var(--blue)">${init}</div>
+            <div class="chat-list-info">
+              <div style="display:flex; justify-content:space-between">
+                <div class="chat-list-name">${c.other_user_name}</div>
+                <div style="font-size:11px;color:var(--text-soft)">${dateStr}</div>
+              </div>
+              <div class="chat-list-preview">${prefix}${c.last_message_image ? '📷 Foto' : c.last_message}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      console.error('API Error fetching conversations');
+    }
+  } catch (err) {
+    console.error('Error cargando conversaciones', err);
+  }
+}
+
+async function loadChat(userId, userName) {
+  currentChatUserId = userId;
+  currentChatUserName = userName;
+  
+  const prefix = currentUser.role === 'company' ? 'company-' : 'student-';
+  const emptyState = document.getElementById(`${prefix}chat-empty-state`);
+  const mainArea = document.getElementById(`${prefix}chat-main-area`);
+  const headerName = document.getElementById(`${prefix}chat-header-name`);
+  
+  if (emptyState) emptyState.style.display = 'none';
+  if (mainArea) mainArea.style.display = 'flex';
+  if (headerName) headerName.textContent = userName;
+  
+  const historyContainer = document.getElementById(`${prefix}chat-history`);
+  if (!historyContainer) return;
+  historyContainer.innerHTML = '<div style="text-align:center; padding:20px">Cargando mensajes...</div>';
+  
+  try {
+    const res = await fetchWithAuth(`${API_URL}/messages/${userId}`);
+    if (res.ok) {
+      const msgs = await res.json();
+      renderChatHistory(msgs, prefix);
+    } else {
+      throw new Error('Error en API: ' + res.status);
+    }
+  } catch(err) {
+    console.error('Error cargando chat', err);
+    historyContainer.innerHTML = '<div style="text-align:center; padding:20px; color:var(--coral)">Error al cargar mensajes</div>';
+  }
+}
+
+function renderChatHistory(msgs, prefix) {
+  const historyContainer = document.getElementById(`${prefix}chat-history`);
+  if (!historyContainer) return;
+
+  if (msgs.length === 0) {
+    historyContainer.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-soft)">Envía un mensaje para comenzar la conversación</div>';
+    return;
+  }
+  
+  historyContainer.innerHTML = msgs.map(m => {
+    const isSent = m.sender_id === currentUser.id;
+    const timeStr = new Date(m.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    return `
+      <div class="chat-bubble ${isSent ? 'sent' : 'received'}">
+        ${m.image_url ? `<img src="${m.image_url}" style="max-width:100%; max-height:250px; object-fit:cover; border-radius:8px; margin-bottom:5px; cursor:pointer;" onclick="window.open('${m.image_url}')">` : ''}
+        ${m.content ? `<div>${m.content}</div>` : ''}
+        <div class="chat-bubble-time">${timeStr}</div>
+      </div>
+    `;
+  }).join('');
+  
+  historyContainer.scrollTop = historyContainer.scrollHeight;
+}
+
+function sendChatMessage() {
+  if (!currentChatUserId) return;
+  const prefix = currentUser.role === 'company' ? 'company-' : 'student-';
+  const input = document.getElementById(`${prefix}chat-input`);
+  if (!input) return;
+
+  const content = input.value.trim();
+  
+  if (!content) return;
+  
+  const msgObj = {
+    senderId: currentUser.id,
+    receiverId: currentChatUserId,
+    content: content,
+    created_at: new Date().toISOString()
+  };
+  
+  if (socket) {
+    socket.emit('send_message', msgObj);
+    // Optimistic render
+    appendMessageToUI(msgObj, true);
+    input.value = '';
+    loadConversations(); // Update side list preview
+  }
+}
+
+function appendMessageToUI(m, isSent) {
+  const prefix = currentUser.role === 'company' ? 'company-' : 'student-';
+  const historyContainer = document.getElementById(`${prefix}chat-history`);
+  if (!historyContainer) return;
+  
+  // Si estaba vacio, limpiamos el texto "Envía un mensaje"
+  if (historyContainer.innerHTML.includes('comenzar la conversación')) {
+    historyContainer.innerHTML = '';
+  }
+  
+  const timeStr = new Date(m.created_at || new Date()).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  historyContainer.insertAdjacentHTML('beforeend', `
+    <div class="chat-bubble ${isSent ? 'sent' : 'received'}">
+      ${m.image_url ? `<img src="${m.image_url}" style="max-width:100%; max-height:250px; object-fit:cover; border-radius:8px; margin-bottom:5px; cursor:pointer;" onclick="window.open('${m.image_url}')">` : ''}
+      ${m.content ? `<div>${m.content}</div>` : ''}
+      <div class="chat-bubble-time">${timeStr}</div>
+    </div>
+  `);
+  historyContainer.scrollTop = historyContainer.scrollHeight;
+}
+
+function previewChatImage(event, role) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!currentChatUserId) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const base64Img = e.target.result;
+    
+    const msgObj = {
+      senderId: currentUser.id,
+      receiverId: currentChatUserId,
+      content: '',
+      image_url: base64Img,
+      created_at: new Date().toISOString()
+    };
+    
+    if (socket) {
+      socket.emit('send_message', msgObj);
+      appendMessageToUI(msgObj, true);
+      loadConversations();
+    }
+  };
+  reader.readAsDataURL(file);
+  event.target.value = ''; // Reset input
+}
+
+function startChatWithCandidate(userId, name) {
+  switchCompanyTab('company-messages');
+  loadChat(userId, name);
+}
+
+// Sobrescribir receive_message listener si existe
+const originalInitSocket = typeof initSocket === 'function' ? initSocket : function(){};
+initSocket = function() {
+  originalInitSocket();
+  if (socket) {
+    // Evitar múltiples listeners
+    socket.off('receive_message'); 
+    socket.on('receive_message', (data) => {
+      // Si el chat actual está abierto con el remitente
+      if (currentChatUserId == data.sender_id) {
+        appendMessageToUI(data, false);
+      } else {
+        showToast('info', 'Nuevo mensaje recibido');
+        // Aumentar badge (simple update)
+        const badgeId = currentUser.role === 'company' ? 'badge-company-messages' : 'badge-student-messages';
+        const badge = document.getElementById(badgeId);
+        if (badge) {
+          badge.style.display = 'inline-block';
+          badge.textContent = parseInt(badge.textContent || 0) + 1;
+        }
+      }
+      loadConversations();
+    });
+  }
+}
+
+// ==========================================
+// SUSCRIPCIONES Y PAGOS (EMPRESAS)
+// ==========================================
+function openCheckoutModal(planId, price) {
+  const planNames = { 'basico': 'Plan Básico', 'plus': 'Plan Plus', 'premium': 'Plan Premium' };
+  document.getElementById('checkout-plan-name').textContent = planNames[planId] || 'Plan';
+  document.getElementById('checkout-plan-price').textContent = `$${price}`;
+  document.getElementById('checkout-plan-id').value = planId;
+  document.getElementById('checkout-form').reset();
+  
+  openModal('checkout-modal');
+}
+
+async function processCheckout(event) {
+  event.preventDefault();
+  const btn = document.getElementById('btn-process-checkout');
+  const originalHtml = btn.innerHTML;
+  
+  // Simular estado de carga
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Procesando pago...';
+  
+  // Simular retraso de transacción bancaria (2 segundos)
+  setTimeout(async () => {
+    try {
+      const planId = document.getElementById('checkout-plan-id').value;
+      const companyId = currentUser.company_id || currentUser.id; // Asumiendo que el usuario es una empresa
+      
+      const response = await fetch(`http://localhost:3000/api/companies/${companyId}/subscription`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planId })
+      });
+      
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Error al procesar el pago');
+      
+      showToast('success', '¡Pago exitoso! Tu suscripción ha sido actualizada.');
+      closeModal('checkout-modal');
+      currentUser.subscription_plan = planId;
+      sessionStorage.setItem('juva_currentUser', JSON.stringify(currentUser));
+      updateSubscriptionUI(planId);
+      
+    } catch (error) {
+      showToast('error', error.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }, 2000);
+}
+
+function updateSubscriptionUI(planId) {
+  const displayNames = { 'gratis': 'Gratis', 'basico': 'Básico', 'plus': 'Plus', 'premium': 'Premium' };
+  const currentPlanDisplay = document.getElementById('current-plan-display');
+  if(currentPlanDisplay) currentPlanDisplay.textContent = displayNames[planId] || planId;
+  
+  // Resetear estilos de todos los botones
+  ['gratis', 'basico', 'plus', 'premium'].forEach(p => {
+    const card = document.getElementById(`plan-card-${p}`);
+    const btn = document.getElementById(`btn-plan-${p}`);
+    if(!card || !btn) return;
+    
+    card.style.borderColor = 'transparent';
+    card.style.background = 'var(--surface)';
+    
+    if (p === planId) {
+      card.style.borderColor = 'var(--primary)';
+      card.style.background = 'var(--blue-pale)';
+      btn.className = 'btn btn-secondary';
+      btn.textContent = 'Plan Actual';
+      btn.disabled = true;
+      btn.onclick = null;
+    } else {
+      btn.disabled = false;
+      if(p === 'gratis') {
+        btn.className = 'btn btn-secondary';
+        btn.textContent = 'Cambiar a Gratis';
+        // Simulamos que volver a gratis es gratis y directo
+        btn.onclick = () => processCheckoutFree('gratis');
+      } else {
+        btn.className = 'btn btn-primary';
+        btn.textContent = `Adquirir ${displayNames[p]}`;
+        const price = p === 'plus' ? 10 : (p === 'premium' ? 20 : 5);
+        btn.onclick = () => openCheckoutModal(p, price);
+      }
+    }
+  });
+}
+
+async function processCheckoutFree(planId) {
+  try {
+    const companyId = currentUser.company_id || currentUser.id;
+    const response = await fetch(`http://localhost:3000/api/companies/${companyId}/subscription`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: planId })
+    });
+    if(response.ok) {
+      showToast('success', 'Suscripción cambiada a Gratis');
+      currentUser.subscription_plan = planId;
+      sessionStorage.setItem('juva_currentUser', JSON.stringify(currentUser));
+      updateSubscriptionUI('gratis');
+    }
+  } catch(e) {
+    showToast('error', 'Error al cambiar plan');
+  }
+}
+
+let MOCK_INTERNS_DATA = [
+  { id: 101, name: 'Carlos Mendoza', career: 'Ing. en Sistemas', university: 'UNI', skills: ['React', 'Node.js', 'Python'], location: 'Managua', avatar: 'CM', color: 'var(--blue)' },
+  { id: 102, name: 'Ana Silva', career: 'Marketing Digital', university: 'UAM', skills: ['SEO', 'Google Ads', 'Redes Sociales'], location: 'León', avatar: 'AS', color: 'var(--teal)' },
+  { id: 103, name: 'Luis García', career: 'Diseño Gráfico', university: 'UCA', skills: ['Figma', 'Illustrator', 'UI/UX'], location: 'Granada', avatar: 'LG', color: 'var(--coral)' },
+  { id: 104, name: 'María Fernanda', career: 'Administración', university: 'UNAN', skills: ['Contabilidad', 'Excel Avanzado'], location: 'Managua', avatar: 'MF', color: 'var(--amber)' },
+  { id: 105, name: 'José López', career: 'Ing. en Sistemas', university: 'UNI', skills: ['Java', 'Spring Boot', 'SQL'], location: 'Estelí', avatar: 'JL', color: 'var(--navy)' },
+  { id: 106, name: 'Sofía Reyes', career: 'Finanzas', university: 'UCC', skills: ['Análisis Financiero', 'Power BI'], location: 'Managua', avatar: 'SR', color: 'var(--blue)' }
+];
+
+let INTERNS_DATA = [];
+let internsLoaded = false;
+
+async function loadInternsFromServer() {
+  if (internsLoaded) return;
+  try {
+    const res = await fetchWithAuth(`${API_URL}/students`);
+    if (res.ok) {
+      INTERNS_DATA = await res.json();
+    } else {
+      INTERNS_DATA = [...MOCK_INTERNS_DATA];
+    }
+  } catch (err) {
+    INTERNS_DATA = [...MOCK_INTERNS_DATA];
+  }
+  internsLoaded = true;
+  filterInterns();
+}
+
+
+function createInternCard(intern) {
+  let avatarHtml = '';
+  if (intern.avatar && intern.avatar.length > 10) {
+    avatarHtml = `<div style="width:48px; height:48px; border-radius:50%; background-image:url('${intern.avatar}'); background-size:cover; background-position:center; border:2px solid ${intern.color}20; flex-shrink:0;"></div>`;
+  } else {
+    avatarHtml = `<div style="width:48px; height:48px; border-radius:50%; background:${intern.color}20; color:${intern.color}; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px; flex-shrink:0;">${intern.avatar}</div>`;
+  }
+
+  return `<div class="job-card" style="display:flex; flex-direction:column;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+      ${avatarHtml}
+      <div style="overflow:hidden;">
+        <div style="font-weight:700; font-size:16px; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${intern.name}</div>
+        <div style="font-size:13px; color:var(--text-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><i class="fa-solid fa-graduation-cap"></i> ${intern.career} &bull; ${intern.university}</div>
+      </div>
+    </div>
+    <div style="font-size:13px; color:var(--text-mid); margin-bottom:12px;"><i class="fa-solid fa-location-dot"></i> ${intern.location}</div>
+    <div class="jc-tags" style="margin-bottom:16px;">
+      ${intern.skills.map(s => `<span class="tag tag-gray">${s}</span>`).join('')}
+    </div>
+    <div style="display:flex; gap:8px; margin-top:auto;">
+      <button class="btn btn-outline btn-sm" style="flex:1; padding: 8px 0;" onclick="viewStudentProfile(${intern.id})"><i class="fa-solid fa-user"></i> Perfil</button>
+      <button class="btn btn-primary btn-sm" style="flex:1; padding: 8px 0;" onclick="showToast('success', 'Solicitud de contacto enviada a ${intern.name}')"><i class="fa-solid fa-envelope"></i> Contactar</button>
+    </div>
+  </div>`;
+}
+
+function renderInterns(containerId, interns) {
+  const g = document.getElementById(containerId);
+  if (g) {
+    if (interns.length === 0) {
+      g.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-soft);">No se encontraron pasantes con esos criterios.</div>';
+    } else {
+      g.innerHTML = interns.map(i => createInternCard(i)).join('');
+    }
+  }
+}
+
+function filterInterns() {
+  const q = (document.getElementById('dash-interns-search')?.value || '').toLowerCase();
+  const cat = document.getElementById('dash-interns-cat')?.value || 'all';
+  
+  let filtered = INTERNS_DATA.filter(i => {
+    const matchCat = cat === 'all' || i.career.includes(cat);
+    const matchQ = !q || i.name.toLowerCase().includes(q) || i.career.toLowerCase().includes(q) || i.skills.some(s => s.toLowerCase().includes(q));
+    return matchCat && matchQ;
+  });
+  
+  renderInterns('interns-grid', filtered);
+}
+
+function viewStudentProfile(id) {
+  const student = INTERNS_DATA.find(i => i.id === id);
+  if (!student) return;
+
+  const avatarEl = document.getElementById('ps-avatar');
+  if (student.avatar && student.avatar.length > 10) {
+    avatarEl.textContent = '';
+    avatarEl.style.backgroundImage = `url('${student.avatar}')`;
+    avatarEl.style.backgroundSize = 'cover';
+    avatarEl.style.backgroundPosition = 'center';
+  } else {
+    avatarEl.style.backgroundImage = 'none';
+    avatarEl.textContent = student.avatar;
+    avatarEl.style.color = student.color;
+  }
+  document.getElementById('ps-banner').style.background = `linear-gradient(135deg, ${student.color} 0%, #1e3a8a 100%)`;
+  
+  document.getElementById('ps-name').textContent = student.name;
+  document.getElementById('ps-career-uni').innerHTML = `<i class="fa-solid fa-graduation-cap"></i> ${student.career} &bull; ${student.university}`;
+  document.getElementById('ps-location').innerHTML = `<i class="fa-solid fa-location-dot"></i> ${student.location}`;
+  
+  document.getElementById('ps-skills').innerHTML = student.skills.map(s => `<span class="tag tag-gray">${s}</span>`).join('');
+  
+  document.getElementById('ps-contact-btn').onclick = () => {
+    showToast('success', `Mensaje enviado a ${student.name}`);
+    closeModal('public-student-modal');
+  };
+  
+  document.getElementById('ps-view-cv').onclick = () => viewStudentCV(student.id);
+  
+  openModal('public-student-modal');
+}
+
+async function viewStudentCV(userId) {
+  try {
+    const res = await fetch(`${API_URL}/cv/${userId}`);
+    if (!res.ok) {
+      showToast('error', 'Este pasante no ha subido su CV todavía.');
+      return;
+    }
+    const data = await res.json();
+    if (data.success && data.fileData) {
+      const fileData = data.fileData;
+      let pdfWindow = window.open("");
+      if (pdfWindow) {
+        pdfWindow.document.body.style.margin = "0";
+        if (fileData.startsWith('data:application/pdf')) {
+          pdfWindow.document.write(`<iframe width='100%' height='100%' src='${fileData}' style='border:none;'></iframe>`);
+        } else if (fileData.startsWith('data:image')) {
+          pdfWindow.document.write(`<div style="display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f0f2f5;"><img src='${fileData}' style='max-width:100%;max-height:100vh;box-shadow:0 4px 12px rgba(0,0,0,0.1);'></div>`);
+        } else {
+          pdfWindow.document.write(`<iframe width='100%' height='100%' src='data:application/pdf;base64,${fileData}' style='border:none;'></iframe>`);
+        }
+        pdfWindow.document.title = "Currículum Vitae";
+      } else {
+        showToast('error', 'Por favor permite las ventanas emergentes (pop-ups) para ver el CV.');
+      }
+    } else {
+      showToast('error', 'El pasante no tiene un CV adjunto válido.');
+    }
+  } catch (err) {
+    console.error('Error fetching CV:', err);
+    showToast('error', 'Hubo un error al intentar abrir el CV.');
+  }
+}
+
