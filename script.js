@@ -223,12 +223,24 @@ function filterDashJobs() {
   const q = document.getElementById('dash-search-input')?.value?.toLowerCase() || '';
   const typeFilter = document.getElementById('dash-filter-type')?.value || 'all';
   const catFilter = document.getElementById('dash-filter-cat')?.value || 'all';
+  const salaryFilter = document.getElementById('dash-filter-salary')?.value || 'all';
   
   let filtered = JOBS.filter(j => {
     const matchType = typeFilter === 'all' || j.type === typeFilter;
     const matchCat = catFilter === 'all' || j.category === catFilter;
     const matchQ = !q || j.title.toLowerCase().includes(q) || j.company.toLowerCase().includes(q) || j.tags.some(t => t.toLowerCase().includes(q));
-    return matchType && matchCat && matchQ;
+    
+    let matchSalary = true;
+    if (salaryFilter === 'paid') {
+      matchSalary = j.salary && j.salary.toLowerCase() !== 'ad honorem' && j.salary !== 'No remunerado';
+    } else if (salaryFilter === 'unpaid') {
+      matchSalary = j.salary && (j.salary.toLowerCase() === 'ad honorem' || j.salary === 'No remunerado');
+    } else if (salaryFilter === 'high') {
+      const num = parseInt((j.salary || '').replace(/[^0-9]/g, ''));
+      matchSalary = !isNaN(num) && num >= 500;
+    }
+
+    return matchType && matchCat && matchQ && matchSalary;
   });
   
   // Calcular puntaje de recomendación para ordenar
@@ -402,7 +414,59 @@ function switchAuthTab(tab) {
   document.getElementById('tab-register-btn').classList.toggle('active', !isLogin);
   document.getElementById('login-form').classList.toggle('hide', !isLogin);
   document.getElementById('register-form').classList.toggle('hide', isLogin);
+  const recoverForm = document.getElementById('recover-form');
+  if(recoverForm) recoverForm.classList.add('hide');
   document.getElementById('auth-modal-title').textContent = isLogin ? 'Bienvenido de vuelta' : 'Crea tu cuenta gratis';
+}
+
+function showRecoverPassword() {
+  document.getElementById('login-form').classList.add('hide');
+  document.getElementById('register-form').classList.add('hide');
+  document.getElementById('tab-login-btn').classList.remove('active');
+  document.getElementById('tab-register-btn').classList.remove('active');
+  document.getElementById('auth-modal-title').textContent = 'Recuperar Contraseña';
+  const recoverForm = document.getElementById('recover-form');
+  if(recoverForm) recoverForm.classList.remove('hide');
+}
+
+async function submitRecoverPassword() {
+  const email = document.getElementById('recover-email').value.trim();
+  const newPassword = document.getElementById('recover-new-password').value;
+
+  if (!email || !newPassword) {
+    showToast('error', 'Por favor completa todos los campos.');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/recover-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, newPassword })
+    });
+
+    const data = await res.json();
+    if (data.error) {
+      showToast('error', data.error);
+      return;
+    }
+
+    showToast('success', 'Contraseña actualizada exitosamente. Ya puedes iniciar sesión.');
+    switchAuthTab('login');
+  } catch (err) {
+    console.error('Error:', err);
+    
+    // Fallback local
+    const userIndex = USERS.findIndex(u => u.email === email);
+    if (userIndex !== -1) {
+      USERS[userIndex].password = newPassword;
+      localStorage.setItem('juva_users', JSON.stringify(USERS));
+      showToast('success', '(Modo Local) Contraseña actualizada exitosamente.');
+      switchAuthTab('login');
+    } else {
+      showToast('error', 'Error de conexión con el servidor al intentar recuperar la contraseña o usuario no encontrado localmente.');
+    }
+  }
 }
 
 function selectRole(el) {
@@ -622,6 +686,35 @@ async function registerUser() {
       showToast('error', 'Por favor, completa los campos obligatorios de la empresa (RUC, Teléfono, Dirección).');
       return;
     }
+    
+    // Validar RUC (Mismo formato que la cédula según requerimiento)
+    if (!/^\d{3}-?\d{6}-?\d{4}[A-Za-z]$/.test(ruc)) {
+      showToast('error', 'El formato del RUC es inválido (debe tener el mismo formato que la cédula, ej: 000-000000-0000A).');
+      return;
+    }
+    
+    // Validar teléfono nicaragüense
+    const cleanPhone = phone ? phone.replace(/[\s-]/g, '') : '';
+    if (cleanPhone && !/^(?:\+505)?[2578]\d{7}$/.test(cleanPhone)) {
+      showToast('error', 'El teléfono de la empresa es inválido. Debe ser un número nicaragüense (8 dígitos que inicien con 2, 5, 7 u 8).');
+      return;
+    }
+    
+    // Validar URL del sitio web si se proporciona
+    if (website && !/^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i.test(website)) {
+      showToast('error', 'El formato del Sitio Web es inválido.');
+      return;
+    }
+    
+    // Validar Año de Fundación si se proporciona
+    if (founded) {
+      const year = parseInt(founded);
+      const currentYear = new Date().getFullYear();
+      if (isNaN(year) || year < 1800 || year > currentYear) {
+        showToast('error', `El año de fundación debe ser un número válido entre 1800 y ${currentYear}.`);
+        return;
+      }
+    }
   }
   
   if (password !== passwordConfirm) {
@@ -653,10 +746,19 @@ async function registerUser() {
         showToast('error', 'La fecha de nacimiento no puede ser una fecha futura.');
         return;
       }
+      let calculatedAge = today.getFullYear() - dobDate.getFullYear();
+      const m = today.getMonth() - dobDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+        calculatedAge--;
+      }
+      if (calculatedAge < 18) {
+        showToast('error', 'La fecha de nacimiento indica que eres menor de 18 años.');
+        return;
+      }
     }
     
-    if (age !== null && age < 15) {
-      showToast('error', 'Debes ser mayor de 15 años para registrarte.');
+    if (age !== null && age < 18) {
+      showToast('error', 'Debes ser mayor de 18 años para registrarte.');
       return;
     }
   }
@@ -714,6 +816,14 @@ function logout() {
   currentUser = null;
   sessionStorage.removeItem('juva_currentUser');
   sessionStorage.removeItem('juva_token');
+  
+  // Clear any leaked session variables to prevent data mixing between accounts
+  tempCompanyImages = {};
+  tempStudentImages = {};
+  currentCompanyProfile = {};
+  window.currentEditJobId = null;
+  window.companyCandidates = [];
+  
   if (socket) { socket.disconnect(); socket = null; }
   document.getElementById('nav-auth-btns').classList.remove('hide');
   document.getElementById('nav-user-btns').classList.add('hide');
@@ -1688,6 +1798,7 @@ function renderStudentData() {
     
     // Load fresh notifications from DB
     loadNotifications();
+    loadUnreadMessages();
 
     const charts = document.querySelectorAll('#tab-overview .chart-container');
     charts.forEach(c => c.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100px;color:var(--text-soft);font-size:13px">No hay suficientes datos todavía</div>');
@@ -1722,8 +1833,17 @@ function renderCompanyData() {
     companySubtitle.textContent = `${currentUser.name} — ${currentUser.location || 'Managua, Nicaragua'}`;
   }
 
-  const myJobs = JOBS.filter(j => j.company_id === currentUser.company_id || j.company === currentUser.name);
-  let drafts = JSON.parse(localStorage.getItem('juva_drafts_' + (currentUser.company_id || 1))) || [];
+  const myJobs = JOBS.filter(j => Number(j.company_id) === Number(currentUser.company_id) || j.company === currentUser.name);
+  let drafts = [];
+  try {
+    drafts = JSON.parse(localStorage.getItem('juva_drafts_' + (currentUser.company_id || 1))) || [];
+  } catch (e) { drafts = []; }
+
+  // Update dynamic stat cards if they exist
+  const vacantesActivasStat = document.querySelectorAll('#tab-company-overview .stat-card .stat-val')[0];
+  if (vacantesActivasStat) {
+    vacantesActivasStat.textContent = myJobs.length;
+  }
 
   const vacTitle = document.querySelector('#tab-vacancies .dash-title');
   if (vacTitle) {
@@ -1776,6 +1896,7 @@ function renderCompanyData() {
   }
 
   loadCandidates();
+  loadUnreadMessages();
 }
 
 async function loadCandidates() {
@@ -1891,43 +2012,70 @@ async function loadCandidates() {
       </div>`;
     }).join('');
   }
-  
-  if (candidatesTableBody) {
-    candidatesTableBody.innerHTML = candidates.map(c => {
-      const init = c.name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
-      let bg = 'blue';
-      if (c.status === 'pending') bg = 'teal';
-      else if (c.status === 'accepted') bg = 'coral';
-      const dateStr = new Date(c.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-      
-      return `<tr>
-        <td>
-          <div class="company-cell">
-            <div class="candidate-avatar" style="display:inline-flex;width:32px;height:32px;font-size:12px;background:var(--${bg}-pale);color:var(--${bg})">${init}</div>
-            <span style="margin-left:8px">${c.name}</span>
-          </div>
-        </td>
-        <td>${c.role}</td>
-        <td>${c.university}</td>
-        <td>${dateStr}</td>
-        <td><span class="status-pill status-${c.status}">${c.status === 'pending' ? 'Pendiente' : c.status === 'accepted' ? 'Aceptado' : c.status === 'rejected' ? 'Rechazado' : 'En revisión'}</span></td>
-        <td>
-          <span style="font-weight:600; color: ${c.match_score >= 80 ? 'var(--primary)' : c.match_score >= 50 ? 'var(--warning, orange)' : 'var(--text-soft)'};">
-            ${c.match_score !== undefined ? c.match_score + '%' : '-'}
-          </span>
-        </td>
-        <td>
-          <div style="display:flex;gap:6px">
-            <button class="btn btn-ghost btn-sm" onclick="viewCandidateCV('${c.user_id || c.name}')">Ver CV</button>
-            ${c.status !== 'accepted' ? `<button class="btn btn-primary btn-sm" onclick="updateCandidateStatus('${c.application_id || c.name}', 'accepted')">Aceptar</button>` : ''}
-            ${c.status !== 'rejected' ? `<button class="btn btn-ghost btn-sm" style="color:var(--coral);" onclick="updateCandidateStatus('${c.application_id || c.name}', 'rejected')">Rechazar</button>` : ''}
-            <button class="btn btn-ghost btn-sm" style="color:var(--blue)" onclick="startChatWithCandidate(${c.user_id}, '${c.name}')"><i class="fa-solid fa-comment"></i> Contactar</button>
-          </div>
-        </td>
-      </tr>`;
-    }).join('');
-  }
+  window.companyCandidates = candidates;
+  filterCandidatesList(window.currentCandidateFilter || 'all');
 }
+
+function filterCandidatesList(status, element = null) {
+  window.currentCandidateFilter = status;
+  
+  if (element) {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    element.classList.add('active');
+  }
+
+  let filtered = window.companyCandidates || [];
+  if (status !== 'all') {
+    filtered = filtered.filter(c => c.status === status);
+  }
+
+  renderCandidatesTable(filtered);
+}
+
+function renderCandidatesTable(candidatesToRender) {
+  const candidatesTableBody = document.querySelector('#tab-candidates tbody');
+  if (!candidatesTableBody) return;
+  
+  if (!candidatesToRender || candidatesToRender.length === 0) {
+    candidatesTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay candidatos para este filtro</td></tr>';
+    return;
+  }
+  
+  candidatesTableBody.innerHTML = candidatesToRender.map(c => {
+    const init = c.name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+    let bg = 'blue';
+    if (c.status === 'pending') bg = 'teal';
+    else if (c.status === 'accepted') bg = 'coral';
+    const dateStr = new Date(c.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    
+    return `<tr>
+      <td>
+        <div class="company-cell">
+          <div class="candidate-avatar" style="display:inline-flex;width:32px;height:32px;font-size:12px;background:var(--${bg}-pale);color:var(--${bg})">${init}</div>
+          <span style="margin-left:8px">${c.name}</span>
+        </div>
+      </td>
+      <td>${c.role}</td>
+      <td>${c.university}</td>
+      <td>${dateStr}</td>
+      <td><span class="status-pill status-${c.status}">${c.status === 'pending' ? 'Pendiente' : c.status === 'accepted' ? 'Aceptado' : c.status === 'rejected' ? 'Rechazado' : 'En revisión'}</span></td>
+      <td>
+        <span style="font-weight:600; color: ${c.match_score >= 80 ? 'var(--primary)' : c.match_score >= 50 ? 'var(--warning, orange)' : 'var(--text-soft)'};">
+          ${c.match_score !== undefined ? c.match_score + '%' : '-'}
+        </span>
+      </td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="viewCandidateCV('${c.user_id || c.name}')">Ver CV</button>
+          ${c.status !== 'accepted' ? `<button class="btn btn-primary btn-sm" onclick="updateCandidateStatus('${c.application_id || c.name}', 'accepted')">Aceptar</button>` : ''}
+          ${c.status !== 'rejected' ? `<button class="btn btn-ghost btn-sm" style="color:var(--coral);" onclick="updateCandidateStatus('${c.application_id || c.name}', 'rejected')">Rechazar</button>` : ''}
+          <button class="btn btn-ghost btn-sm" style="color:var(--blue)" onclick="startChatWithCandidate(${c.user_id}, '${c.name}')"><i class="fa-solid fa-comment"></i> Contactar</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
 
 async function viewCandidateCV(userIdOrName) {
   if (!userIdOrName) return;
@@ -2125,6 +2273,32 @@ function openEditProfileModal() {
   openModal('edit-profile-modal');
 }
 
+function calculateAge() {
+  const dobVal = document.getElementById('edit-dob').value;
+  if (!dobVal) return;
+  const dobDate = new Date(dobVal);
+  const today = new Date();
+  let calculatedAge = today.getFullYear() - dobDate.getFullYear();
+  const m = today.getMonth() - dobDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+    calculatedAge--;
+  }
+  document.getElementById('edit-age').value = calculatedAge >= 0 ? calculatedAge : 0;
+}
+
+function calculateAgeReg() {
+  const dobVal = document.getElementById('reg-student-dob').value;
+  if (!dobVal) return;
+  const dobDate = new Date(dobVal);
+  const today = new Date();
+  let calculatedAge = today.getFullYear() - dobDate.getFullYear();
+  const m = today.getMonth() - dobDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+    calculatedAge--;
+  }
+  document.getElementById('reg-student-age').value = calculatedAge >= 0 ? calculatedAge : 0;
+}
+
 async function saveProfile() {
   if (!currentUser) return;
   
@@ -2137,14 +2311,30 @@ async function saveProfile() {
   const age = ageVal ? parseInt(ageVal) : null;
   const address = document.getElementById('edit-address').value.trim();
   
-  if (phone && !/^\d{8}$/.test(phone)) {
-    showToast('error', 'El número telefónico es inválido. Debe tener exactamente 8 dígitos.');
+  const cleanPhone = phone ? phone.replace(/[\s-]/g, '') : '';
+  if (cleanPhone && !/^(?:\+505)?[2578]\d{7}$/.test(cleanPhone)) {
+    showToast('error', 'El número telefónico es inválido. Debe ser un número nicaragüense (8 dígitos que inicien con 2, 5, 7 u 8).');
     return;
   }
-  if (cedula && !/^\d{3}-\d{6}-\d{4}[A-Za-z]$/.test(cedula)) {
-    showToast('error', 'El formato de cédula es inválido (ej: 000-000000-0000A).');
+  if (cedula && !/^\d{3}-?\d{6}-?\d{4}[A-Za-z]$/.test(cedula)) {
+    showToast('error', 'El formato de cédula nicaragüense es inválido (ej: 000-000000-0000A).');
     return;
   }
+  
+  if (dob) {
+    const dobDate = new Date(dob);
+    const today = new Date();
+    let calculatedAge = today.getFullYear() - dobDate.getFullYear();
+    const m = today.getMonth() - dobDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+      calculatedAge--;
+    }
+    if (calculatedAge < 18) {
+      showToast('error', 'La fecha de nacimiento indica que eres menor de 18 años.');
+      return;
+    }
+  }
+
   if (age !== null && age < 18) {
     showToast('error', 'Debes ser mayor de 18 años.');
     return;
@@ -2399,9 +2589,32 @@ async function handleCVUpload(input) {
         const data = await response.json();
         
         if (response.ok) {
-          showToast('success', `¡CV "${file.name}" guardado en la base de datos!`);
+          showToast('success', `¡CV "${file.name}" guardado en la base de datos! Procesando información...`);
           const viewBtn = document.getElementById('view-cv-btn');
           if(viewBtn) viewBtn.style.display = 'inline-block';
+          
+          try {
+            const parseRes = await fetch(`${API_URL}/parse-cv`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileData })
+            });
+            const pData = await parseRes.json();
+            if (pData.success) {
+              openEditProfileModal();
+              if (pData.phone) {
+                currentUser.phone = pData.phone;
+                const phoneInput = document.getElementById('edit-phone');
+                if (phoneInput) phoneInput.value = pData.phone;
+              }
+              showToast('success', '¡CV analizado con éxito! Revisa tu información y guarda tu perfil.');
+              if (pData.skills) {
+                showToast('info', `Habilidades detectadas: ${pData.skills}`);
+              }
+            }
+          } catch(e) {
+            console.error('Error parseando CV:', e);
+          }
         } else {
           showToast('error', data.error || 'Error al guardar el CV');
         }
@@ -2553,7 +2766,34 @@ document.documentElement.setAttribute('data-theme', savedTheme);
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('theme-toggle');
   if (btn) btn.innerHTML = savedTheme === 'dark' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+  initDateDropdowns();
 });
+
+function initDateDropdowns() {
+  const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  const monthSelects = ['apply-exp-from-month', 'apply-exp-to-month'];
+  const yearSelects = ['apply-exp-from-year', 'apply-exp-to-year'];
+  
+  monthSelects.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '<option value="">Mes</option>';
+    months.forEach((m, i) => {
+      const val = (i + 1).toString().padStart(2, '0');
+      el.innerHTML += `<option value="${val}">${m}</option>`;
+    });
+  });
+  
+  const currentYear = new Date().getFullYear();
+  yearSelects.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '<option value="">Año</option>';
+    for (let y = currentYear; y >= currentYear - 50; y--) {
+      el.innerHTML += `<option value="${y}">${y}</option>`;
+    }
+  });
+}
 
 // ==========================================
 // MENU MOVIL (RESPONSIVE)
@@ -2604,6 +2844,66 @@ function renderCandidateSkeletons() {
 // ==========================================
 let currentChatUserId = null;
 let currentChatUserName = '';
+let onlineUsers = [];
+let typingTimeout = null;
+
+function handleTyping() {
+  if (!currentChatUserId || !socket) return;
+  socket.emit('typing', { senderId: currentUser.id, receiverId: currentChatUserId });
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(() => {
+    socket.emit('stop_typing', { senderId: currentUser.id, receiverId: currentChatUserId });
+  }, 2000);
+}
+
+function showTypingIndicator(show) {
+  const prefix = currentUser.role === 'company' ? 'company-' : 'student-';
+  let indicator = document.getElementById(`${prefix}typing-indicator`);
+  
+  if (!indicator) {
+    const historyContainer = document.getElementById(`${prefix}chat-history`);
+    if (!historyContainer) return;
+    historyContainer.insertAdjacentHTML('beforeend', `
+      <div id="${prefix}typing-indicator" class="chat-bubble received" style="display:none; align-self:flex-start; margin-top:5px; padding:10px 15px; font-style:italic; color:var(--text-soft); border:none; box-shadow:none; background:transparent;">
+        <span style="animation: blink 1s infinite">.</span><span style="animation: blink 1s infinite; animation-delay: 0.2s">.</span><span style="animation: blink 1s infinite; animation-delay: 0.4s">.</span> Escribiendo
+      </div>
+    `);
+    indicator = document.getElementById(`${prefix}typing-indicator`);
+  }
+  
+  if (show) {
+    indicator.style.display = 'block';
+    const historyContainer = document.getElementById(`${prefix}chat-history`);
+    historyContainer.scrollTop = historyContainer.scrollHeight;
+  } else {
+    indicator.style.display = 'none';
+  }
+}
+
+async function loadUnreadMessages() {
+  if (!loggedIn) return;
+  try {
+    const res = await fetchWithAuth(`${API_URL}/messages/unread`);
+    if (res.ok) {
+      const data = await res.json();
+      const count = data.unreadCount;
+      const badgeId = currentUser.role === 'company' ? 'badge-company-messages' : 'badge-student-messages';
+      const badge = document.getElementById(badgeId);
+      if (badge) {
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'inline-block' : 'none';
+      }
+    }
+    
+    // Also fetch online users here conveniently
+    const onlineRes = await fetchWithAuth(`${API_URL}/users/online`);
+    if (onlineRes.ok) {
+      onlineUsers = await onlineRes.json();
+    }
+  } catch (err) {
+    console.error('Error loading unread messages', err);
+  }
+}
 
 async function loadConversations() {
   if (!loggedIn) return;
@@ -2622,15 +2922,20 @@ async function loadConversations() {
         const init = c.other_user_name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
         const dateStr = new Date(c.last_message_date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         const prefix = c.sender_id === currentUser.id ? 'Tú: ' : '';
+        const isOnline = onlineUsers.includes(String(c.other_user_id));
+        const onlineIndicator = isOnline ? `<div style="width:12px;height:12px;background:#00e676;border-radius:50%;border:2px solid var(--surface);position:absolute;bottom:-2px;right:-2px;z-index:2;"></div>` : '';
         return `
           <div class="chat-list-item" onclick="loadChat(${c.other_user_id}, '${c.other_user_name}')">
-            <div class="candidate-avatar" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;font-size:14px;background:var(--blue-pale);color:var(--blue)">${init}</div>
-            <div class="chat-list-info">
+            <div class="candidate-avatar" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;font-size:14px;background:var(--blue-pale);color:var(--blue);position:relative;flex-shrink:0;">
+              ${init}
+              ${onlineIndicator}
+            </div>
+            <div class="chat-list-info" style="flex:1;overflow:hidden;margin-left:10px;">
               <div style="display:flex; justify-content:space-between">
-                <div class="chat-list-name">${c.other_user_name}</div>
-                <div style="font-size:11px;color:var(--text-soft)">${dateStr}</div>
+                <div class="chat-list-name" style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.other_user_name}</div>
+                <div style="font-size:11px;color:var(--text-soft);margin-left:5px;flex-shrink:0;">${dateStr}</div>
               </div>
-              <div class="chat-list-preview">${prefix}${c.last_message_image ? '📷 Foto' : c.last_message}</div>
+              <div class="chat-list-preview" style="font-size:13px;color:var(--text-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${prefix}${c.last_message_image ? '📷 Foto' : c.last_message}</div>
             </div>
           </div>
         `;
@@ -2658,6 +2963,7 @@ async function loadChat(userId, userName) {
   
   const historyContainer = document.getElementById(`${prefix}chat-history`);
   if (!historyContainer) return;
+  
   historyContainer.innerHTML = '<div style="text-align:center; padding:20px">Cargando mensajes...</div>';
   
   try {
@@ -2665,8 +2971,9 @@ async function loadChat(userId, userName) {
     if (res.ok) {
       const msgs = await res.json();
       renderChatHistory(msgs, prefix);
+      loadUnreadMessages(); // Update badge as messages are now read
     } else {
-      throw new Error('Error en API: ' + res.status);
+      console.error('API Error fetching messages:', res.status);
     }
   } catch(err) {
     console.error('Error cargando chat', err);
@@ -2703,7 +3010,6 @@ function sendChatMessage() {
   const prefix = currentUser.role === 'company' ? 'company-' : 'student-';
   const input = document.getElementById(`${prefix}chat-input`);
   if (!input) return;
-
   const content = input.value.trim();
   
   if (!content) return;
@@ -2715,12 +3021,14 @@ function sendChatMessage() {
     created_at: new Date().toISOString()
   };
   
-  if (socket) {
+  if (typeof socket !== 'undefined' && socket) {
     socket.emit('send_message', msgObj);
     // Optimistic render
     appendMessageToUI(msgObj, true);
     input.value = '';
     loadConversations(); // Update side list preview
+  } else {
+    showToast('error', 'El chat no está conectado al servidor.');
   }
 }
 
@@ -2782,11 +3090,16 @@ const originalInitSocket = typeof initSocket === 'function' ? initSocket : funct
 initSocket = function() {
   originalInitSocket();
   if (socket) {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+    
     // Evitar múltiples listeners
     socket.off('receive_message'); 
     socket.on('receive_message', (data) => {
       // Si el chat actual está abierto con el remitente
       if (currentChatUserId == data.sender_id) {
+        showTypingIndicator(false);
         appendMessageToUI(data, false);
       } else {
         showToast('info', 'Nuevo mensaje recibido');
@@ -2798,7 +3111,48 @@ initSocket = function() {
           badge.textContent = parseInt(badge.textContent || 0) + 1;
         }
       }
+      
+      // Lanzar notificación nativa si la pestaña está oculta
+      if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+        new Notification("JuvaConnect: Nuevo mensaje", {
+          body: data.content || "Te han enviado una imagen.",
+          icon: "https://cdn-icons-png.flaticon.com/512/1041/1041916.png"
+        });
+      }
+      
       loadConversations();
+    });
+
+    socket.off('messages_read');
+    socket.on('messages_read', (data) => {
+      if (currentChatUserId == data.receiverId) {
+        // Re-render chat to show double blue checks
+        loadChat(currentChatUserId, currentChatUserName);
+      }
+    });
+
+    socket.off('user_status_change');
+    socket.on('user_status_change', (data) => {
+      if (data.status === 'online') {
+        if (!onlineUsers.includes(String(data.userId))) onlineUsers.push(String(data.userId));
+      } else {
+        onlineUsers = onlineUsers.filter(id => id !== String(data.userId));
+      }
+      loadConversations(); // Update dots
+    });
+
+    socket.off('typing');
+    socket.on('typing', (data) => {
+      if (String(currentChatUserId) === String(data.senderId)) {
+        showTypingIndicator(true);
+      }
+    });
+
+    socket.off('stop_typing');
+    socket.on('stop_typing', (data) => {
+      if (String(currentChatUserId) === String(data.senderId)) {
+        showTypingIndicator(false);
+      }
     });
   }
 }
@@ -2810,8 +3164,8 @@ function openCheckoutModal(planId, price) {
   const planNames = { 'basico': 'Plan Básico', 'plus': 'Plan Plus', 'premium': 'Plan Premium' };
   document.getElementById('checkout-plan-name').textContent = planNames[planId] || 'Plan';
   document.getElementById('checkout-plan-price').textContent = `$${price}`;
-  document.getElementById('checkout-plan-id').value = planId;
   document.getElementById('checkout-form').reset();
+  document.getElementById('checkout-plan-id').value = planId;
   
   openModal('checkout-modal');
 }
@@ -2831,7 +3185,7 @@ async function processCheckout(event) {
       const planId = document.getElementById('checkout-plan-id').value;
       const companyId = currentUser.company_id || currentUser.id; // Asumiendo que el usuario es una empresa
       
-      const response = await fetch(`http://localhost:3000/api/companies/${companyId}/subscription`, {
+      const response = await fetchWithAuth(`${API_URL}/companies/${companyId}/subscription`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan: planId })
@@ -2896,7 +3250,7 @@ function updateSubscriptionUI(planId) {
 async function processCheckoutFree(planId) {
   try {
     const companyId = currentUser.company_id || currentUser.id;
-    const response = await fetch(`http://localhost:3000/api/companies/${companyId}/subscription`, {
+    const response = await fetchWithAuth(`${API_URL}/companies/${companyId}/subscription`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plan: planId })
@@ -2963,7 +3317,7 @@ function createInternCard(intern) {
     </div>
     <div style="display:flex; gap:8px; margin-top:auto;">
       <button class="btn btn-outline btn-sm" style="flex:1; padding: 8px 0;" onclick="viewStudentProfile(${intern.id})"><i class="fa-solid fa-user"></i> Perfil</button>
-      <button class="btn btn-primary btn-sm" style="flex:1; padding: 8px 0;" onclick="showToast('success', 'Solicitud de contacto enviada a ${intern.name}')"><i class="fa-solid fa-envelope"></i> Contactar</button>
+      <button class="btn btn-primary btn-sm" style="flex:1; padding: 8px 0;" onclick="startChatWithCandidate(${intern.id}, '${intern.name}')"><i class="fa-solid fa-envelope"></i> Contactar</button>
     </div>
   </div>`;
 }
@@ -2993,8 +3347,11 @@ function filterInterns() {
 }
 
 function viewStudentProfile(id) {
-  const student = INTERNS_DATA.find(i => i.id === id);
-  if (!student) return;
+  const student = INTERNS_DATA.find(i => i.id == id);
+  if (!student) {
+    console.error("No se encontró el estudiante con id:", id);
+    return;
+  }
 
   const avatarEl = document.getElementById('ps-avatar');
   if (student.avatar && student.avatar.length > 10) {
@@ -3004,20 +3361,21 @@ function viewStudentProfile(id) {
     avatarEl.style.backgroundPosition = 'center';
   } else {
     avatarEl.style.backgroundImage = 'none';
-    avatarEl.textContent = student.avatar;
-    avatarEl.style.color = student.color;
+    avatarEl.textContent = student.avatar || 'PS';
+    avatarEl.style.color = student.color || 'var(--teal)';
   }
-  document.getElementById('ps-banner').style.background = `linear-gradient(135deg, ${student.color} 0%, #1e3a8a 100%)`;
+  document.getElementById('ps-banner').style.background = `linear-gradient(135deg, ${student.color || 'var(--teal)'} 0%, #1e3a8a 100%)`;
   
-  document.getElementById('ps-name').textContent = student.name;
-  document.getElementById('ps-career-uni').innerHTML = `<i class="fa-solid fa-graduation-cap"></i> ${student.career} &bull; ${student.university}`;
-  document.getElementById('ps-location').innerHTML = `<i class="fa-solid fa-location-dot"></i> ${student.location}`;
+  document.getElementById('ps-name').textContent = student.name || 'Sin nombre';
+  document.getElementById('ps-career-uni').innerHTML = `<i class="fa-solid fa-graduation-cap"></i> ${student.career || 'N/A'} &bull; ${student.university || 'N/A'}`;
+  document.getElementById('ps-location').innerHTML = `<i class="fa-solid fa-location-dot"></i> ${student.location || 'N/A'}`;
   
-  document.getElementById('ps-skills').innerHTML = student.skills.map(s => `<span class="tag tag-gray">${s}</span>`).join('');
+  const skills = student.skills || [];
+  document.getElementById('ps-skills').innerHTML = skills.map(s => `<span class="tag tag-gray">${s}</span>`).join('');
   
   document.getElementById('ps-contact-btn').onclick = () => {
-    showToast('success', `Mensaje enviado a ${student.name}`);
     closeModal('public-student-modal');
+    startChatWithCandidate(student.id, student.name);
   };
   
   document.getElementById('ps-view-cv').onclick = () => viewStudentCV(student.id);
@@ -3035,19 +3393,41 @@ async function viewStudentCV(userId) {
     const data = await res.json();
     if (data.success && data.fileData) {
       const fileData = data.fileData;
-      let pdfWindow = window.open("");
-      if (pdfWindow) {
-        pdfWindow.document.body.style.margin = "0";
-        if (fileData.startsWith('data:application/pdf')) {
-          pdfWindow.document.write(`<iframe width='100%' height='100%' src='${fileData}' style='border:none;'></iframe>`);
-        } else if (fileData.startsWith('data:image')) {
-          pdfWindow.document.write(`<div style="display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f0f2f5;"><img src='${fileData}' style='max-width:100%;max-height:100vh;box-shadow:0 4px 12px rgba(0,0,0,0.1);'></div>`);
-        } else {
-          pdfWindow.document.write(`<iframe width='100%' height='100%' src='data:application/pdf;base64,${fileData}' style='border:none;'></iframe>`);
+      
+      try {
+        // En navegadores modernos (Edge/Chrome), abrir URIs 'data:' largos o usarlos 
+        // en iframes puede dar ERR_INVALID_URL. 
+        // La solución óptima es convertir la cadena base64 en un objeto Blob.
+        let base64str = fileData;
+        if (!base64str.startsWith('data:')) {
+            base64str = 'data:application/pdf;base64,' + base64str;
+        } else if (base64str.startsWith('data:text/') && !base64str.includes('charset=')) {
+            base64str = base64str.replace(';base64,', ';charset=utf-8;base64,');
         }
-        pdfWindow.document.title = "Currículum Vitae";
-      } else {
-        showToast('error', 'Por favor permite las ventanas emergentes (pop-ups) para ver el CV.');
+        const fetchRes = await fetch(base64str);
+        const blob = await fetchRes.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const pdfWindow = window.open(blobUrl, "_blank");
+        
+        if (!pdfWindow) {
+          showToast('error', 'Por favor permite las ventanas emergentes (pop-ups) para ver el CV.');
+        }
+      } catch (blobErr) {
+        // Fallback a document.write en caso de que fetch de base64 falle en navegadores viejos
+        let pdfWindow = window.open("");
+        if (pdfWindow) {
+          pdfWindow.document.body.style.margin = "0";
+          if (fileData.startsWith('data:application/pdf')) {
+            pdfWindow.document.write(`<iframe width='100%' height='100%' src='${fileData}' style='border:none;'></iframe>`);
+          } else if (fileData.startsWith('data:image')) {
+            pdfWindow.document.write(`<div style="display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f0f2f5;"><img src='${fileData}' style='max-width:100%;max-height:100vh;box-shadow:0 4px 12px rgba(0,0,0,0.1);'></div>`);
+          } else {
+            pdfWindow.document.write(`<iframe width='100%' height='100%' src='data:application/pdf;base64,${fileData}' style='border:none;'></iframe>`);
+          }
+          pdfWindow.document.title = "Currículum Vitae";
+        } else {
+          showToast('error', 'Por favor permite las ventanas emergentes (pop-ups) para ver el CV.');
+        }
       }
     } else {
       showToast('error', 'El pasante no tiene un CV adjunto válido.');

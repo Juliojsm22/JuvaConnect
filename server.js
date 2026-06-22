@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const pdfParse = require('pdf-parse');
 const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
@@ -13,7 +14,8 @@ const io = new Server(server, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE']
-  }
+  },
+  maxHttpBufferSize: 1e7 // 10 MB limit for images
 });
 
 // Socket.io logic
@@ -23,14 +25,34 @@ io.on('connection', (socket) => {
   socket.on('register_user', (userId) => {
     activeUsers.set(String(userId), socket.id);
     console.log(`👤 Usuario registrado en socket: ${userId}`);
+    io.emit('user_status_change', { userId, status: 'online' });
+  });
+
+  socket.on('typing', (data) => {
+    const receiverSocket = activeUsers.get(String(data.receiverId));
+    if (receiverSocket) {
+      io.to(receiverSocket).emit('typing', { senderId: data.senderId });
+    }
+  });
+
+  socket.on('stop_typing', (data) => {
+    const receiverSocket = activeUsers.get(String(data.receiverId));
+    if (receiverSocket) {
+      io.to(receiverSocket).emit('stop_typing', { senderId: data.senderId });
+    }
   });
 
   socket.on('disconnect', () => {
+    let disconnectedUserId = null;
     for (let [key, value] of activeUsers.entries()) {
       if (value === socket.id) {
+        disconnectedUserId = key;
         activeUsers.delete(key);
         break;
       }
+    }
+    if (disconnectedUserId) {
+      io.emit('user_status_change', { userId: disconnectedUserId, status: 'offline' });
     }
   });
 
@@ -43,10 +65,22 @@ io.on('connection', (socket) => {
       const res = await pool.query(query, [senderId, receiverId, content, finalImgUrl || null]);
       const savedMessage = res.rows[0];
 
+      // Insertar notificación en la DB
+      try {
+        const notifQuery = 'INSERT INTO notifications (user_id, title, message, icon, color) VALUES ($1, $2, $3, $4, $5)';
+        await pool.query(notifQuery, [receiverId, 'Nuevo Mensaje', 'Has recibido un nuevo mensaje', 'fa-solid fa-comments', 'var(--blue)']);
+      } catch (nErr) {
+        console.error('Error insertando notificacion de mensaje:', nErr);
+      }
+
       // Emitir al destinatario si está conectado
       const receiverSocket = activeUsers.get(String(receiverId));
       if (receiverSocket) {
         io.to(receiverSocket).emit('receive_message', savedMessage);
+        io.to(receiverSocket).emit('new_notification', {
+          title: 'Nuevo Mensaje',
+          message: 'Has recibido un nuevo mensaje'
+        });
       }
       // Emitir confirmación al sender
       socket.emit('message_sent', savedMessage);
@@ -186,6 +220,39 @@ app.get('/api/students', async (req, res) => {
     console.error('Error al obtener estudiantes:', err.message);
     res.status(500).json({ error: 'Error del servidor' });
   }
+});
+
+// 1.8 Recuperar contraseña (interno)
+app.post('/api/recover-password', async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    if (!email || !newPassword) {
+      return res.status(400).json({ error: 'Faltan datos obligatorios' });
+    }
+
+    const existsQuery = `SELECT id FROM users WHERE email = $1`;
+    const existsResult = await pool.query(existsQuery, [email]);
+    if (existsResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Correo electrónico no registrado.' });
+    }
+
+    const saltRounds = 10;
+    const password_hash = await bcrypt.hash(newPassword, saltRounds);
+
+    const updateQuery = `UPDATE users SET password_hash = $1 WHERE email = $2`;
+    await pool.query(updateQuery, [password_hash, email]);
+
+    console.log(`🔐 Contraseña recuperada/actualizada para: ${email}`);
+    res.json({ success: true, message: 'Contraseña actualizada' });
+  } catch (err) {
+    console.error('Error en recover-password:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// GET ONLINE USERS
+app.get('/api/users/online', (req, res) => {
+  res.json(Array.from(activeUsers.keys()));
 });
 
 // 2. Iniciar sesión (Login)
@@ -777,6 +844,48 @@ app.post('/api/upload-cv', async (req, res) => {
   }
 });
 
+// Parsear PDF
+app.post('/api/parse-cv', async (req, res) => {
+  try {
+    const { fileData } = req.body;
+    if (!fileData) return res.status(400).json({ error: 'No file data' });
+
+    const base64Data = fileData.replace(/^data:application\/pdf;base64,/, "");
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    const data = await pdfParse(buffer);
+    const text = data.text;
+    
+    // Simple regex extraction
+    const emailMatch = text.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+    const phoneMatch = text.match(/(\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})/);
+    
+    let skills = [];
+    if (text.toLowerCase().includes('javascript')) skills.push('JavaScript');
+    if (text.toLowerCase().includes('react')) skills.push('React');
+    if (text.toLowerCase().includes('node')) skills.push('Node.js');
+    if (text.toLowerCase().includes('python')) skills.push('Python');
+    if (text.toLowerCase().includes('sql')) skills.push('SQL');
+    if (text.toLowerCase().includes('html')) skills.push('HTML');
+    if (text.toLowerCase().includes('css')) skills.push('CSS');
+    if (text.toLowerCase().includes('excel')) skills.push('Excel');
+    if (text.toLowerCase().includes('java ')) skills.push('Java');
+    if (text.toLowerCase().includes('marketing')) skills.push('Marketing');
+    if (text.toLowerCase().includes('diseño')) skills.push('Diseño UI/UX');
+    
+    res.json({
+      success: true,
+      email: emailMatch ? emailMatch[0] : '',
+      phone: phoneMatch ? phoneMatch[0] : '',
+      skills: skills.join(', '),
+      rawText: text.substring(0, 500)
+    });
+  } catch (e) {
+    console.error('Error parseando CV:', e);
+    res.status(500).json({ error: 'Error interno al parsear el PDF' });
+  }
+});
+
 // 6. Descargar/Ver CV del Estudiante
 app.get('/api/cv/:userId', async (req, res) => {
   try {
@@ -800,9 +909,28 @@ app.get('/api/cv/:userId', async (req, res) => {
 
 // Servir la API en el puerto especificado
 
+
 // ==========================================
 // CHAT ENDPOINTS
 // ==========================================
+
+// Obtener cantidad de mensajes sin leer
+app.get('/api/messages/unread', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'No autorizado' });
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const userId = decoded.id;
+
+    const query = 'SELECT COUNT(*) FROM messages WHERE receiver_id = $1 AND read_at IS NULL';
+    const result = await pool.query(query, [userId]);
+    res.json({ unreadCount: parseInt(result.rows[0].count) });
+  } catch (err) {
+    console.error('Error fetching unread messages:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // Obtener la lista de conversaciones (último mensaje con cada usuario)
 app.get('/api/messages/conversations', async (req, res) => {
@@ -855,6 +983,9 @@ app.get('/api/messages/:otherId', async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     const userId = decoded.id;
     const { otherId } = req.params;
+
+    // Marcar los mensajes entrantes como leídos
+    await pool.query('UPDATE messages SET read_at = NOW() WHERE sender_id = $1 AND receiver_id = $2 AND read_at IS NULL', [otherId, userId]);
 
     const query = `
       SELECT * FROM messages

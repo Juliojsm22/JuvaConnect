@@ -719,6 +719,12 @@
                 <option value="marketing">Marketing</option>
                 <option value="admin">Administración</option>
               </select>
+              <select id="dash-filter-salary" class="form-group" style="margin-bottom: 0; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; width: 160px;" onchange="filterDashJobs()">
+                <option value="all">Cualquier salario</option>
+                <option value="paid">Remunerado</option>
+                <option value="unpaid">Ad Honorem</option>
+                <option value="high">Más de $500</option>
+              </select>
             </div>
           </div>
           <div class="jobs-grid" id="dash-jobs-grid"></div>
@@ -751,7 +757,7 @@
                 <button class="btn btn-ghost" style="position:absolute; left:25px; top:50%; transform:translateY(-50%); padding:5px; color:var(--text-soft)" onclick="document.getElementById('student-chat-img').click()" title="Adjuntar imagen">
                   <i class="fa-solid fa-paperclip"></i>
                 </button>
-                <input type="text" id="student-chat-input" placeholder="Escribe un mensaje..." style="padding-left:45px">
+                <input type="text" id="student-chat-input" placeholder="Escribe un mensaje..." style="padding-left:45px" onkeypress="if(event.key === 'Enter') sendChatMessage()">
                 <button class="btn btn-primary" onclick="sendChatMessage()"><i class="fa-solid fa-paper-plane"></i></button>
               </div>
             </div>
@@ -761,6 +767,7 @@
             </div>
           </div>
         </div>
+
       </main>
     </div>
   </div>
@@ -970,11 +977,11 @@
           </div>
           <div class="card">
             <div class="search-filters" style="margin-bottom:16px">
-              <button id="chip-todos" class="filter-chip active">Todos (0)</button>
-              <button id="chip-pending" class="filter-chip">Pendientes (0)</button>
-              <button id="chip-review" class="filter-chip">En revisión (0)</button>
-              <button id="chip-accepted" class="filter-chip">Aceptados (0)</button>
-              <button id="chip-rejected" class="filter-chip">Rechazados (0)</button>
+              <button id="chip-todos" class="filter-chip active" onclick="filterCandidatesList('all', this)">Todos (0)</button>
+              <button id="chip-pending" class="filter-chip" onclick="filterCandidatesList('pending', this)">Pendientes (0)</button>
+              <button id="chip-review" class="filter-chip" onclick="filterCandidatesList('review', this)">En revisión (0)</button>
+              <button id="chip-accepted" class="filter-chip" onclick="filterCandidatesList('accepted', this)">Aceptados (0)</button>
+              <button id="chip-rejected" class="filter-chip" onclick="filterCandidatesList('rejected', this)">Rechazados (0)</button>
             </div>
             <table class="data-table">
               <thead>
@@ -1138,7 +1145,7 @@
                 <button class="btn btn-ghost" style="position:absolute; left:25px; top:50%; transform:translateY(-50%); padding:5px; color:var(--text-soft)" onclick="document.getElementById('company-chat-img').click()" title="Adjuntar imagen">
                   <i class="fa-solid fa-paperclip"></i>
                 </button>
-                <input type="text" id="company-chat-input" placeholder="Escribe un mensaje..." style="padding-left:45px">
+                <input type="text" id="company-chat-input" placeholder="Escribe un mensaje..." style="padding-left:45px" onkeypress="if(event.key === 'Enter') sendChatMessage()">
                 <button class="btn btn-primary" onclick="sendChatMessage()"><i class="fa-solid fa-paper-plane"></i></button>
               </div>
             </div>
@@ -1601,16 +1608,16 @@
           <div class="form-row" style="display:flex; gap:16px; margin-bottom:16px;">
             <div class="form-group" style="flex:1;">
               <label>Nombres *</label>
-              <input type="text" id="apply-fn" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;" required>
+              <input type="text" id="apply-fn" style="width:100%; padding:10px 12px; border:1px solid var(--border-mid); border-radius:8px; outline:none; background:var(--surface); color:var(--text);" required>
             </div>
             <div class="form-group" style="flex:1;">
               <label>Apellidos *</label>
-              <input type="text" id="apply-ln" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;" required>
+              <input type="text" id="apply-ln" style="width:100%; padding:10px 12px; border:1px solid var(--border-mid); border-radius:8px; outline:none; background:var(--surface); color:var(--text);" required>
             </div>
           </div>
           <div class="form-group" style="margin-bottom:16px;">
             <label>Código del país *</label>
-            <select id="apply-country-code" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none; background:#fff;">
+            <select id="apply-country-code" style="width:100%; padding:10px 12px; border:1px solid var(--border-mid); border-radius:8px; outline:none; background:var(--surface); color:var(--text);">
               <option value="+505">Nicaragua (+505)</option>
               <option value="+506">Costa Rica (+506)</option>
               <option value="+504">Honduras (+504)</option>
@@ -1620,15 +1627,15 @@
           </div>
           <div class="form-group" style="margin-bottom:16px;">
             <label>Número de teléfono celular *</label>
-            <input type="tel" id="apply-phone" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;" required>
+            <input type="tel" id="apply-phone" style="width:100%; padding:10px 12px; border:1px solid var(--border-mid); border-radius:8px; outline:none; background:var(--surface); color:var(--text);" required>
           </div>
           <div class="form-group" style="margin-bottom:16px;">
             <label>Correo electrónico *</label>
-            <input type="email" id="apply-email" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;" required>
+            <input type="email" id="apply-email" style="width:100%; padding:10px 12px; border:1px solid var(--border-mid); border-radius:8px; outline:none; background:var(--surface); color:var(--text);" required>
           </div>
           <div class="form-group">
             <label>Ubicación (Ciudad) *</label>
-            <input type="text" id="apply-city" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;" value="Managua, Nicaragua" required>
+            <input type="text" id="apply-city" style="width:100%; padding:10px 12px; border:1px solid var(--border-mid); border-radius:8px; outline:none; background:var(--surface); color:var(--text);" value="Managua, Nicaragua" required>
           </div>
         </div>
 
@@ -1676,11 +1683,11 @@
           
           <div class="form-group" style="margin-bottom:16px;">
             <label>Título del puesto *</label>
-            <input type="text" id="apply-exp-title" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;" required>
+            <input type="text" id="apply-exp-title" style="width:100%; padding:10px 12px; border:1px solid var(--border-mid); border-radius:8px; outline:none; background:var(--surface); color:var(--text);" required>
           </div>
           <div class="form-group" style="margin-bottom:16px;">
             <label>Empresa *</label>
-            <input type="text" id="apply-exp-company" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;" required>
+            <input type="text" id="apply-exp-company" style="width:100%; padding:10px 12px; border:1px solid var(--border-mid); border-radius:8px; outline:none; background:var(--surface); color:var(--text);" required>
           </div>
           <div class="form-group" style="margin-bottom:16px;">
             <label>Fechas de empleo *</label>
@@ -1692,26 +1699,26 @@
               <div style="flex:1;">
                 <label style="font-size:12px; color:var(--text-soft);">Desde *</label>
                 <div style="display:flex; gap:8px;">
-                  <select style="width:50%; padding:8px; border:1px solid #e2e8f0; border-radius:8px; outline:none; background:#fff;"><option>Mes</option><option>Ene</option></select>
-                  <select style="width:50%; padding:8px; border:1px solid #e2e8f0; border-radius:8px; outline:none; background:#fff;"><option>Año</option><option>2023</option></select>
+                  <select id="apply-exp-from-month" style="width:50%; padding:8px; border:1px solid var(--border-mid); border-radius:8px; outline:none; background:var(--surface); color:var(--text);"><option value="">Mes</option></select>
+                  <select id="apply-exp-from-year" style="width:50%; padding:8px; border:1px solid var(--border-mid); border-radius:8px; outline:none; background:var(--surface); color:var(--text);"><option value="">Año</option></select>
                 </div>
               </div>
               <div style="flex:1; opacity:0.5; pointer-events:none;" id="apply-exp-to-container">
                 <label style="font-size:12px; color:var(--text-soft);">Hasta *</label>
                 <div style="display:flex; gap:8px;">
-                  <select style="width:50%; padding:8px; border:1px solid #e2e8f0; border-radius:8px; outline:none; background:#f8fafc;"><option>Mes</option></select>
-                  <select style="width:50%; padding:8px; border:1px solid #e2e8f0; border-radius:8px; outline:none; background:#f8fafc;"><option>Año</option></select>
+                  <select id="apply-exp-to-month" style="width:50%; padding:8px; border:1px solid var(--border-mid); border-radius:8px; outline:none; background:var(--surface2); color:var(--text);"><option value="">Mes</option></select>
+                  <select id="apply-exp-to-year" style="width:50%; padding:8px; border:1px solid var(--border-mid); border-radius:8px; outline:none; background:var(--surface2); color:var(--text);"><option value="">Año</option></select>
                 </div>
               </div>
             </div>
           </div>
           <div class="form-group" style="margin-bottom:16px;">
             <label>Ciudad</label>
-            <input type="text" id="apply-exp-city" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; outline:none;">
+            <input type="text" id="apply-exp-city" style="width:100%; padding:10px 12px; border:1px solid var(--border-mid); border-radius:8px; outline:none; background:var(--surface); color:var(--text);">
           </div>
           <div class="form-group">
             <label>Descripción</label>
-            <textarea id="apply-exp-desc" style="width:100%; min-height:80px; padding:12px; border:1px solid #e2e8f0; border-radius:8px; font-family:'Inter',sans-serif; font-size:14px; outline:none; resize:vertical;"></textarea>
+            <textarea id="apply-exp-desc" style="width:100%; min-height:80px; padding:12px; border:1px solid var(--border-mid); border-radius:8px; font-family:'Inter',sans-serif; font-size:14px; outline:none; resize:vertical; background:var(--surface); color:var(--text);"></textarea>
             <div style="text-align:right; font-size:11px; color:var(--text-soft); margin-top:4px;">0/2000</div>
           </div>
         </div>
@@ -1823,7 +1830,19 @@
           <button class="btn btn-primary" style="width:100%;margin-bottom:16px" onclick="login()">Iniciar sesión</button>
           <div style="text-align:center;font-size:12px;color:var(--text-soft);margin-bottom:12px;">Cuentas locales: estudiante@test.com, empresa@test.com o admin@test.com<br>Clave para todas: 123</div>
           <div style="text-align:center;font-size:13px;color:var(--text-soft)"><a href="#"
-              style="color:var(--blue);text-decoration:none">¿Olvidaste tu contraseña?</a></div>
+              style="color:var(--blue);text-decoration:none" onclick="showRecoverPassword()">¿Olvidaste tu contraseña?</a></div>
+        </div>
+
+        <!-- RECOVER PASSWORD -->
+        <div id="recover-form" class="hide">
+          <div style="margin-bottom:16px;font-size:14px;color:var(--text-soft);text-align:center;">
+            Recuperación Interna: Ingresa tu correo y tu nueva contraseña directamente.
+          </div>
+          <div class="form-group"><label>Correo electrónico</label><input type="email" placeholder="tu@correo.com" id="recover-email"></div>
+          <div class="form-group"><label>Nueva Contraseña</label><input type="password" placeholder="••••••••" id="recover-new-password"></div>
+          <button class="btn btn-primary" style="width:100%;margin-bottom:16px" onclick="submitRecoverPassword()">Actualizar Contraseña</button>
+          <div style="text-align:center;font-size:13px;color:var(--text-soft)"><a href="#"
+              style="color:var(--blue);text-decoration:none" onclick="switchAuthTab('login')">Volver a Iniciar sesión</a></div>
         </div>
 
         <!-- REGISTER -->
@@ -1849,7 +1868,7 @@
           </div>
 
           <div class="form-row company-fields hide">
-            <div class="form-group"><label>Número RUC</label><input type="text" placeholder="J0000000000000" id="reg-company-ruc"></div>
+            <div class="form-group"><label>Número RUC</label><input type="text" placeholder="000-000000-0000A" id="reg-company-ruc"></div>
             <div class="form-group"><label>Teléfono de la Empresa</label><input type="tel" placeholder="+505 8888 8888" id="reg-company-phone"></div>
           </div>
 
@@ -1866,7 +1885,7 @@
           <div class="form-row student-fields">
             <div class="form-group">
               <label>Universidad</label>
-              <select id="reg-student-university" onchange="handleUniversityChange(this)" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;background:#f9fbfd;font-family:'Inter',sans-serif;font-size:14px;color:var(--text-dark);outline:none;transition:border-color 0.2s">
+              <select id="reg-student-university" onchange="handleUniversityChange(this)" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-family:'Inter',sans-serif;font-size:14px;color:var(--text);outline:none;transition:border-color 0.2s">
                 <option value="">Selecciona tu universidad</option>
                 <option value="UNI">Universidad Nacional de Ingeniería (UNI)</option>
                 <option value="UNAN-Managua">UNAN-Managua</option>
@@ -1894,8 +1913,8 @@
           </div>
 
           <div class="form-row student-fields">
-            <div class="form-group"><label>Fecha de Nacimiento</label><input type="date" id="reg-student-dob"></div>
-            <div class="form-group"><label>Edad</label><input type="number" placeholder="Ej: 21" min="15" max="100" id="reg-student-age"></div>
+            <div class="form-group"><label>Fecha de Nacimiento</label><input type="date" id="reg-student-dob" onchange="calculateAgeReg()"></div>
+            <div class="form-group"><label>Edad</label><input type="number" placeholder="Ej: 21" id="reg-student-age" readonly style="background:var(--surface2);color:var(--text);"></div>
           </div>
           
           <div class="form-group company-fields hide">
@@ -1952,13 +1971,13 @@
         </div>
         <div class="form-row">
           <div class="form-group"><label>Fecha de Nacimiento</label><input type="date" id="edit-dob" onchange="calculateAge()"></div>
-          <div class="form-group"><label>Edad</label><input type="number" id="edit-age" readonly style="background:#f9fafb;"></div>
+          <div class="form-group"><label>Edad</label><input type="number" id="edit-age" readonly style="background:var(--surface2);color:var(--text);"></div>
         </div>
         <div class="form-group"><label>Dirección</label><input type="text" id="edit-address"></div>
       </div>
       <div class="modal-footer" style="padding:15px 25px; border-top:1px solid var(--border); display:flex; justify-content:flex-end;">
         <button class="btn btn-outline" style="margin-right:10px;" onclick="closeModal('edit-profile-modal')">Cancelar</button>
-        <button class="btn btn-primary" onclick="saveUserProfile()">Guardar Cambios</button>
+        <button class="btn btn-primary" onclick="saveProfile()">Guardar Cambios</button>
       </div>
     </div>
   </div>
@@ -1987,15 +2006,15 @@
         </div>
 
         <div class="form-row" style="margin-bottom:25px;">
-          <div class="form-group" style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border);">
+          <div class="form-group" style="background:var(--surface2); padding:15px; border-radius:8px; border:1px solid var(--border);">
             <div style="font-size:12px; color:var(--text-soft); margin-bottom:5px;">Tamaño de Empresa</div>
             <div style="font-weight:600; color:var(--text);" id="pc-size">11-50 Empleados</div>
           </div>
-          <div class="form-group" style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border);">
+          <div class="form-group" style="background:var(--surface2); padding:15px; border-radius:8px; border:1px solid var(--border);">
             <div style="font-size:12px; color:var(--text-soft); margin-bottom:5px;">Año de Fundación</div>
             <div style="font-weight:600; color:var(--text);" id="pc-founded">2010</div>
           </div>
-          <div class="form-group" style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border);">
+          <div class="form-group" style="background:var(--surface2); padding:15px; border-radius:8px; border:1px solid var(--border);">
             <div style="font-size:12px; color:var(--text-soft); margin-bottom:5px;">Sitio Web</div>
             <div style="font-weight:600; color:var(--blue);" id="pc-website"><a href="#" target="_blank" style="color:inherit;text-decoration:none;">Visitar web <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px;"></i></a></div>
           </div>

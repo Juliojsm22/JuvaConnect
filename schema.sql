@@ -12,6 +12,7 @@ CREATE TABLE companies (
     logo_filename VARCHAR(255),
     sector VARCHAR(50),
     location VARCHAR(100),
+    subscription_plan VARCHAR(50) DEFAULT 'gratis',
     website VARCHAR(255),
     phone VARCHAR(20),
     ruc VARCHAR(20),
